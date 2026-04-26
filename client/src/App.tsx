@@ -1,8 +1,3 @@
-/*
-Design reminder — Midnight Conservatory Console:
-A neo-noir academic interface with greenhouse-inspired glow accents, panoramic layout,
-crisp security storytelling, dark glass depth, and elegant motion. Avoid generic centered landing-page patterns.
-*/
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -24,7 +19,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
           <Router />

@@ -1,406 +1,448 @@
-/*
-Design reminder — Midnight Conservatory Console:
-Use an asymmetric panoramic composition, dark glass panels, emerald glow accents,
-editorial typography, and measured motion so the page feels like a premium academic security demo.
-*/
 import { useEffect, useMemo, useState } from "react";
-import { ShieldCheck, LockKeyhole, TimerReset, UserPlus, LogIn, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  Check,
+  Eye,
+  EyeOff,
+  Lock,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+} from "lucide-react";
 
-type PasswordRule = {
-  label: string;
-  passed: boolean;
-};
-
-type AccountRecord = {
+type RegisterForm = {
   fullName: string;
   email: string;
   phone: string;
   password: string;
-  createdAt: string;
+  confirmPassword: string;
 };
 
-const heroImage = "https://d2xsxph8kpxj0f.cloudfront.net/310419663028461165/Gt6iYhPCNZWstzygyVkic7/floralink-hero-auth-console-YMPfM2KxkpTAYVQ4W2qTY6.webp";
-const securityImage = "https://d2xsxph8kpxj0f.cloudfront.net/310419663028461165/Gt6iYhPCNZWstzygyVkic7/floralink-security-panel-art-DwVkf6fAVFTQVbveJhnfcn.webp";
-const ambientTexture = "https://d2xsxph8kpxj0f.cloudfront.net/310419663028461165/Gt6iYhPCNZWstzygyVkic7/floralink-auth-texture-Xdp2yL6XqUqqvNUQxmYJyY.webp";
+type LoginForm = {
+  email: string;
+  password: string;
+};
 
-const initialRegister = {
+const demoAccount = {
+  name: "Reem Alshareef",
+  email: "reem@example.com",
+  password: "Bloom@2026",
+  phone: "+966 50 123 4567",
+};
+
+const emptyRegister: RegisterForm = {
   fullName: "",
   email: "",
   phone: "",
   password: "",
+  confirmPassword: "",
 };
 
-const initialLogin = {
-  email: "",
+const emptyLogin: LoginForm = {
+  email: demoAccount.email,
   password: "",
 };
 
-function evaluatePassword(password: string): PasswordRule[] {
+function getPasswordRules(password: string) {
   return [
-    { label: "12+ characters", passed: password.length >= 12 },
+    { label: "8+ characters", passed: password.length >= 8 },
     { label: "Uppercase letter", passed: /[A-Z]/.test(password) },
-    { label: "Lowercase letter", passed: /[a-z]/.test(password) },
     { label: "Number", passed: /\d/.test(password) },
     { label: "Special character", passed: /[^A-Za-z0-9]/.test(password) },
-    { label: "No spaces", passed: !/\s/.test(password) },
+    {
+      label: "Not common",
+      passed: password.length >= 8 && !/(password|123456|qwerty|welcome)/i.test(password),
+    },
   ];
 }
 
-function formatTime(value: string) {
-  return new Date(value).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
 }
 
 export default function Home() {
-  const [mode, setMode] = useState<"register" | "login">("register");
-  const [registerForm, setRegisterForm] = useState(initialRegister);
-  const [loginForm, setLoginForm] = useState(initialLogin);
-  const [account, setAccount] = useState<AccountRecord | null>(null);
-  const [registered, setRegistered] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
-  const [registerMessage, setRegisterMessage] = useState<string>("Create a secure FloraLink customer account for the SEC545 demo.");
-  const [loginMessage, setLoginMessage] = useState<string>("Authenticate with the registered account to validate the security controls.");
+  const [tab, setTab] = useState<"register" | "login">("register");
+  const [registerForm, setRegisterForm] = useState<RegisterForm>(emptyRegister);
+  const [loginForm, setLoginForm] = useState<LoginForm>(emptyLogin);
+  const [registerState, setRegisterState] = useState<"idle" | "error" | "exists" | "success">("idle");
+  const [loginState, setLoginState] = useState<"idle" | "error" | "warning" | "locked" | "success">("idle");
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
-  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [lockSeconds, setLockSeconds] = useState(0);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    if (lockSeconds <= 0) return;
+    const timer = window.setInterval(() => {
+      setLockSeconds((value) => (value <= 1 ? 0 : value - 1));
+    }, 1000);
     return () => window.clearInterval(timer);
-  }, []);
-
-  const passwordRules = useMemo(() => evaluatePassword(registerForm.password), [registerForm.password]);
-  const passwordStrength = useMemo(() => Math.round((passwordRules.filter((rule) => rule.passed).length / passwordRules.length) * 100), [passwordRules]);
-  const lockRemaining = lockoutUntil ? Math.max(0, Math.ceil((lockoutUntil - now) / 1000)) : 0;
-  const locked = lockRemaining > 0;
+  }, [lockSeconds]);
 
   useEffect(() => {
-    if (!locked && lockoutUntil) {
-      setLockoutUntil(null);
+    if (lockSeconds === 0 && loginState === "locked") {
+      setLoginState("idle");
       setFailedAttempts(0);
-      setLoginMessage("Lockout window ended. You can try signing in again.");
     }
-  }, [locked, lockoutUntil]);
+  }, [lockSeconds, loginState]);
+
+  const passwordRules = useMemo(() => getPasswordRules(registerForm.password), [registerForm.password]);
+  const passedRules = passwordRules.filter((item) => item.passed).length;
+  const passwordStrong = passedRules === passwordRules.length;
+  const passwordProgress = `${(passedRules / passwordRules.length) * 100}%`;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email);
+  const confirmMatch = registerForm.password.length > 0 && registerForm.password === registerForm.confirmPassword;
 
   function submitRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const normalizedEmail = registerForm.email.trim().toLowerCase();
+    const hasEmpty = Object.values(registerForm).some((value) => value.trim() === "");
 
-    if (Object.values(registerForm).some((value) => value.trim().length === 0)) {
-      setRegisterMessage("All registration fields are required for UC-01.");
+    if (normalizedEmail === demoAccount.email) {
+      setRegisterState("exists");
       return;
     }
 
-    const policyValid = passwordRules.every((rule) => rule.passed);
-    if (!policyValid) {
-      setRegisterMessage("MIT-01 rejected the password because the full policy is not yet satisfied.");
+    if (hasEmpty || !emailValid || !passwordStrong || !confirmMatch) {
+      setRegisterState("error");
       return;
     }
 
-    const record: AccountRecord = {
-      ...registerForm,
-      email: registerForm.email.trim().toLowerCase(),
-      createdAt: new Date().toISOString(),
-    };
-
-    setAccount(record);
-    setRegistered(true);
-    setAuthenticated(true);
-    setMode("login");
-    setFailedAttempts(0);
-    setLockoutUntil(null);
-    setRegisterMessage("Account created successfully. In the real implementation, the password is hashed and stored securely.");
-    setLoginMessage("Registration completed. The account is now ready for secure login testing.");
-    setRegisterForm(initialRegister);
+    setRegisterState("success");
   }
 
   function submitLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!account) {
-      setLoginMessage("Register an account first so the authentication flow has a valid customer record.");
+    if (lockSeconds > 0) {
+      setLoginState("locked");
       return;
     }
 
-    if (locked) {
-      setLoginMessage(`MIT-02 lockout is active. Try again in ${lockRemaining} seconds.`);
+    const valid =
+      loginForm.email.trim().toLowerCase() === demoAccount.email && loginForm.password === demoAccount.password;
+
+    if (valid) {
+      setLoginState("success");
+      setFailedAttempts(0);
       return;
     }
 
-    const normalizedEmail = loginForm.email.trim().toLowerCase();
-    const validCredentials = normalizedEmail === account.email && loginForm.password === account.password;
+    const next = failedAttempts + 1;
+    setFailedAttempts(next);
 
-    if (!validCredentials) {
-      const nextAttempts = failedAttempts + 1;
-      setFailedAttempts(nextAttempts);
-      if (nextAttempts >= 5) {
-        const expiresAt = Date.now() + 2 * 60 * 1000;
-        setLockoutUntil(expiresAt);
-        setAuthenticated(false);
-        setLoginMessage("MIT-02 activated a timed account lockout after 5 failed attempts.");
-        return;
-      }
-      setAuthenticated(false);
-      setLoginMessage(`Invalid credentials. ${5 - nextAttempts} attempt(s) remaining before lockout.`);
+    if (next >= 5) {
+      setLockSeconds(15 * 60);
+      setLoginState("locked");
       return;
     }
 
-    setAuthenticated(true);
-    setFailedAttempts(0);
-    setLockoutUntil(null);
-    setLoginMessage("Login successful. MIT-02 reset the failed-attempt counter after secure authentication.");
-    setLoginForm(initialLogin);
+    if (next === 4) {
+      setLoginState("warning");
+      return;
+    }
+
+    setLoginState("error");
   }
 
-  const highlights = [
-    {
-      icon: UserPlus,
-      title: "UC-01 Register Account",
-      text: "Guest visitors create a FloraLink customer account using validated identity fields and a strong password policy.",
-    },
-    {
-      icon: LogIn,
-      title: "UC-02 Login",
-      text: "Registered users authenticate with secure credential checking and clear feedback on successful or failed access.",
-    },
-    {
-      icon: ShieldCheck,
-      title: "MIT-01 Strong Authentication",
-      text: "A six-rule password policy is enforced visually and procedurally to demonstrate secure-by-design registration.",
-    },
-    {
-      icon: LockKeyhole,
-      title: "MIT-02 Rate Limiting & Lockout",
-      text: "The page simulates repeated failed-login monitoring and timed lockout behavior for the academic demo scenario.",
-    },
-  ];
+  function resetRegister() {
+    setRegisterForm(emptyRegister);
+    setRegisterState("idle");
+  }
+
+  function resetLogin() {
+    setLoginForm(emptyLogin);
+    setLoginState("idle");
+    setFailedAttempts(0);
+    setLockSeconds(0);
+  }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      <div className="pointer-events-none absolute inset-0 opacity-60" style={{ backgroundImage: `url(${ambientTexture})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(125,255,214,0.12),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(215,236,255,0.10),transparent_32%),linear-gradient(180deg,rgba(7,12,20,0.1),rgba(7,12,20,0.85))]" />
+    <div className="site-shell">
+      <header className="topbar">
+        <a className="brand" href="#home" aria-label="FloraLink home">
+          <img src="/manus-storage/floralink-logo_02b3becb.png" alt="FloraLink" className="brand-logo" />
+        </a>
 
-      <main className="relative container py-8 lg:py-12">
-        <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-card/70 shadow-[0_32px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <div className="grid min-h-[680px] lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="relative flex flex-col justify-between overflow-hidden border-b border-white/10 p-8 lg:border-b-0 lg:border-r lg:p-10">
-                <div className="absolute inset-0">
-                  <img src={heroImage} alt="FloraLink visual identity" className="h-full w-full object-cover opacity-45" />
-                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,11,18,0.2),rgba(7,11,18,0.88))]" />
+        <nav className="topnav">
+          <a href="#home">Home</a>
+          <a href="#auth">Account</a>
+        </nav>
+
+        <button className="bag-button" type="button">
+          <ShoppingBag className="h-4 w-4" />
+          Cart
+        </button>
+      </header>
+
+      <main className="main-grid" id="home">
+        <section className="hero-copy">
+          <span className="hero-badge">Fresh flowers, simple checkout</span>
+          <h1>Flowers for every small moment.</h1>
+          <p>
+            Order bouquets, save your details, and come back faster next time.
+          </p>
+
+          <div className="hero-actions">
+            <button className="primary-cta" type="button" onClick={() => setTab("register")}>
+              Create account
+            </button>
+            <button className="secondary-cta" type="button" onClick={() => setTab("login")}>
+              Sign in
+            </button>
+          </div>
+
+        </section>
+
+        <section className="auth-panel" id="auth">
+          <div className="tabs">
+            <button
+              className={tab === "register" ? "tab active" : "tab"}
+              type="button"
+              onClick={() => setTab("register")}
+            >
+              Create account
+            </button>
+            <button
+              className={tab === "login" ? "tab active" : "tab"}
+              type="button"
+              onClick={() => setTab("login")}
+            >
+              Sign in
+            </button>
+          </div>
+
+          {tab === "register" ? (
+            registerState === "success" ? (
+              <div className="auth-success">
+                <div className="success-circle">
+                  <Check className="h-5 w-5" />
                 </div>
-
-                <div className="relative z-10 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.34em] text-emerald-200/80">FloraLink · SEC545</p>
-                    <h1 className="mt-4 max-w-md font-display text-4xl leading-[1.05] text-white sm:text-5xl">
-                      Authentication demo engineered as a polished security story.
-                    </h1>
-                  </div>
-                  <div className="rounded-full border border-emerald-200/20 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-100/85">
-                    Standalone site
-                  </div>
+                <h2>Welcome, {registerForm.fullName || demoAccount.name}</h2>
+                <p>Your account is ready.</p>
+                <div className="summary-card">
+                  <div><span>Name</span><strong>{registerForm.fullName || demoAccount.name}</strong></div>
+                  <div><span>Email</span><strong>{registerForm.email || "new@floralink.com"}</strong></div>
+                  <div><span>Phone</span><strong>{registerForm.phone || demoAccount.phone}</strong></div>
                 </div>
+                <button className="primary-cta block" type="button" onClick={() => setTab("login")}>
+                  Continue to sign in
+                </button>
+                <button className="text-action" type="button" onClick={resetRegister}>
+                  Create another account
+                </button>
+              </div>
+            ) : (
+              <form className="auth-form" onSubmit={submitRegister}>
+                <h2>Create your account</h2>
 
-                <div className="relative z-10 grid gap-4 sm:grid-cols-2">
-                  {highlights.map((item) => (
-                    <article key={item.title} className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4 backdrop-blur-md transition duration-300 hover:border-emerald-200/35 hover:bg-black/30">
-                      <item.icon className="mb-4 h-5 w-5 text-emerald-200" />
-                      <h2 className="text-sm font-semibold text-white">{item.title}</h2>
-                      <p className="mt-2 text-sm leading-6 text-white/72">{item.text}</p>
-                    </article>
+                {registerState === "exists" ? (
+                  <div className="notice error">This email is already registered.</div>
+                ) : null}
+                {registerState === "error" ? (
+                  <div className="notice error">Please check the highlighted fields.</div>
+                ) : null}
+
+                <label>
+                  <span>Full name</span>
+                  <input
+                    value={registerForm.fullName}
+                    onChange={(event) => setRegisterForm((current) => ({ ...current, fullName: event.target.value }))}
+                    className={registerState === "error" && registerForm.fullName.trim() === "" ? "field-error" : ""}
+                    placeholder="Reem Alshareef"
+                  />
+                </label>
+
+                <label>
+                  <span>Email</span>
+                  <input
+                    value={registerForm.email}
+                    onChange={(event) => setRegisterForm((current) => ({ ...current, email: event.target.value }))}
+                    className={registerState === "exists" || (registerState === "error" && !emailValid) ? "field-error" : ""}
+                    placeholder="reem@example.com"
+                  />
+                </label>
+
+                <label>
+                  <span>Phone</span>
+                  <input
+                    value={registerForm.phone}
+                    onChange={(event) => setRegisterForm((current) => ({ ...current, phone: event.target.value }))}
+                    placeholder="+966 50 123 4567"
+                  />
+                </label>
+
+                <label>
+                  <span>Password</span>
+                  <div className="password-field">
+                    <input
+                      type={showRegisterPassword ? "text" : "password"}
+                      value={registerForm.password}
+                      onChange={(event) => setRegisterForm((current) => ({ ...current, password: event.target.value }))}
+                      className={registerState === "error" && !passwordStrong ? "field-error" : ""}
+                      placeholder="Create password"
+                    />
+                    <button type="button" className="icon-button" onClick={() => setShowRegisterPassword((value) => !value)}>
+                      {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </label>
+
+                <div className="password-meter">
+                  <div className="password-meter-fill" style={{ width: passwordProgress }} />
+                </div>
+                <div className="rules-grid">
+                  {passwordRules.map((rule) => (
+                    <div key={rule.label} className={rule.passed ? "rule ok" : "rule"}>
+                      <span>{rule.passed ? "✓" : "•"}</span>
+                      {rule.label}
+                    </div>
                   ))}
                 </div>
-              </div>
 
-              <div className="flex flex-col justify-between p-7 sm:p-9 lg:p-10">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200/80">Chosen design</p>
-                    <h2 className="mt-2 text-2xl font-display text-white">Midnight Conservatory Console</h2>
-                  </div>
-                  <div className="flex gap-2 rounded-full border border-white/10 bg-black/20 p-1">
-                    <button
-                      type="button"
-                      onClick={() => setMode("register")}
-                      className={`rounded-full px-4 py-2 text-sm transition ${mode === "register" ? "bg-emerald-200 text-slate-950" : "text-white/70 hover:text-white"}`}
-                    >
-                      Register
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode("login")}
-                      className={`rounded-full px-4 py-2 text-sm transition ${mode === "login" ? "bg-emerald-200 text-slate-950" : "text-white/70 hover:text-white"}`}
-                    >
-                      Login
+                <label>
+                  <span>Confirm password</span>
+                  <div className="password-field">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={registerForm.confirmPassword}
+                      onChange={(event) => setRegisterForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                      className={registerState === "error" && !confirmMatch ? "field-error" : ""}
+                      placeholder="Repeat password"
+                    />
+                    <button type="button" className="icon-button" onClick={() => setShowConfirmPassword((value) => !value)}>
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                </label>
+
+                <div className="captcha-row">
+                  <label className="check-row">
+                    <input type="checkbox" defaultChecked />
+                    <span>I'm not a robot</span>
+                  </label>
+                  <span className="captcha-mark">reCAPTCHA</span>
                 </div>
 
-                <div className="mt-8 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                  <div className="rounded-[1.75rem] border border-white/10 bg-black/20 p-5 backdrop-blur-md sm:p-6">
-                    {mode === "register" ? (
-                      <form className="space-y-4" onSubmit={submitRegister}>
-                        <div>
-                          <label className="mb-2 block text-sm text-white/70">Full name</label>
-                          <input value={registerForm.fullName} onChange={(e) => setRegisterForm((current) => ({ ...current, fullName: e.target.value }))} className="field-input" placeholder="Shahad Almahmoud" />
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div>
-                            <label className="mb-2 block text-sm text-white/70">Email</label>
-                            <input type="email" value={registerForm.email} onChange={(e) => setRegisterForm((current) => ({ ...current, email: e.target.value }))} className="field-input" placeholder="user@floralink.sa" />
-                          </div>
-                          <div>
-                            <label className="mb-2 block text-sm text-white/70">Phone</label>
-                            <input value={registerForm.phone} onChange={(e) => setRegisterForm((current) => ({ ...current, phone: e.target.value }))} className="field-input" placeholder="05XXXXXXXX" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-sm text-white/70">Password</label>
-                          <input type="password" value={registerForm.password} onChange={(e) => setRegisterForm((current) => ({ ...current, password: e.target.value }))} className="field-input" placeholder="Create a strong password" />
-                        </div>
-
-                        <div className="rounded-[1.5rem] border border-emerald-200/15 bg-emerald-200/5 p-4">
-                          <div className="mb-3 flex items-center justify-between text-sm text-white/76">
-                            <span>MIT-01 password policy meter</span>
-                            <span>{passwordStrength}%</span>
-                          </div>
-                          <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                            <div className="h-full rounded-full bg-[linear-gradient(90deg,#b8ffe5,#6fe0c0,#d9f2ff)] transition-all duration-500" style={{ width: `${passwordStrength}%` }} />
-                          </div>
-                          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                            {passwordRules.map((rule) => (
-                              <div key={rule.label} className={`rounded-2xl px-3 py-2 text-sm transition ${rule.passed ? "bg-emerald-200/15 text-emerald-100" : "bg-white/5 text-white/65"}`}>
-                                {rule.label}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white/78">
-                          {registerMessage}
-                        </div>
-                        <button type="submit" className="action-button">
-                          <UserPlus className="h-4 w-4" />
-                          Create FloraLink account
-                        </button>
-                      </form>
-                    ) : (
-                      <form className="space-y-4" onSubmit={submitLogin}>
-                        <div>
-                          <label className="mb-2 block text-sm text-white/70">Registered email</label>
-                          <input type="email" value={loginForm.email} onChange={(e) => setLoginForm((current) => ({ ...current, email: e.target.value }))} className="field-input" placeholder="user@floralink.sa" />
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-sm text-white/70">Password</label>
-                          <input type="password" value={loginForm.password} onChange={(e) => setLoginForm((current) => ({ ...current, password: e.target.value }))} className="field-input" placeholder="Enter the registered password" />
-                        </div>
-
-                        <div className="rounded-[1.5rem] border border-amber-200/20 bg-amber-100/5 p-4 text-sm leading-6 text-white/76">
-                          <div className="flex items-start gap-3">
-                            <TimerReset className="mt-0.5 h-4 w-4 text-amber-100" />
-                            <p>
-                              MIT-02 simulates account monitoring with a lockout after <strong>5 failed attempts</strong>.
-                              This static site keeps the behavior in browser state to present the deliverable cleanly.
-                            </p>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-3 text-xs uppercase tracking-[0.2em] text-white/60">
-                            <span>Failed attempts: {failedAttempts}</span>
-                            <span>Status: {locked ? "Locked" : authenticated ? "Authenticated" : "Ready"}</span>
-                          </div>
-                          {locked ? <p className="mt-3 font-semibold text-amber-100">Lockout active · {lockRemaining}s remaining</p> : null}
-                        </div>
-
-                        <div className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white/78">
-                          {loginMessage}
-                        </div>
-                        <button type="submit" className="action-button" disabled={locked}>
-                          <LogIn className="h-4 w-4" />
-                          {locked ? "Account temporarily locked" : "Authenticate securely"}
-                        </button>
-                      </form>
-                    )}
-                  </div>
-
-                  <aside className="space-y-4">
-                    <article className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-black/20 backdrop-blur-md">
-                      <img src={securityImage} alt="FloraLink security concepts" className="h-44 w-full object-cover opacity-90" />
-                      <div className="p-5">
-                        <h3 className="font-display text-xl text-white">Why this repo exists separately</h3>
-                        <p className="mt-3 text-sm leading-6 text-white/70">
-                          This standalone website isolates the SEC545 deliverable from the graduation project and turns the authentication demo into its own clean presentation space.
-                        </p>
-                      </div>
-                    </article>
-
-                    <article className="rounded-[1.75rem] border border-white/10 bg-black/20 p-5 backdrop-blur-md">
-                      <h3 className="font-display text-xl text-white">Current demo state</h3>
-                      <div className="mt-4 space-y-3 text-sm leading-6 text-white/72">
-                        <div className="info-row"><span>UC-01</span><strong>Implemented</strong></div>
-                        <div className="info-row"><span>UC-02</span><strong>Implemented</strong></div>
-                        <div className="info-row"><span>MIT-01</span><strong>Password policy</strong></div>
-                        <div className="info-row"><span>MIT-02</span><strong>Lockout simulation</strong></div>
-                      </div>
-                    </article>
-
-                    <article className="rounded-[1.75rem] border border-white/10 bg-black/20 p-5 backdrop-blur-md">
-                      <h3 className="font-display text-xl text-white">Session card</h3>
-                      {account ? (
-                        <div className="mt-4 space-y-3 text-sm leading-6 text-white/72">
-                          <div className="flex items-center gap-2 text-emerald-100">
-                            {authenticated ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                            <span>{authenticated ? "Active secure session" : "Account exists, not signed in"}</span>
-                          </div>
-                          <div className="info-row"><span>Name</span><strong>{account.fullName}</strong></div>
-                          <div className="info-row"><span>Email</span><strong>{account.email}</strong></div>
-                          <div className="info-row"><span>Registered</span><strong>{formatTime(account.createdAt)}</strong></div>
-                          <div className="info-row"><span>Lock state</span><strong>{locked ? "Locked" : "Normal"}</strong></div>
-                        </div>
-                      ) : (
-                        <p className="mt-4 text-sm leading-6 text-white/70">
-                          No account exists yet in this browser session. Start with UC-01 to populate the demo state.
-                        </p>
-                      )}
-                    </article>
-                  </aside>
-                </div>
+                <button className="primary-cta block" type="submit">
+                  Create account
+                </button>
+                <button className="text-action" type="button" onClick={() => setTab("login")}>
+                  Already have an account?
+                </button>
+              </form>
+            )
+          ) : loginState === "success" ? (
+            <div className="auth-success">
+              <div className="success-circle secure">
+                <ShieldCheck className="h-5 w-5" />
               </div>
+              <h2>Welcome back</h2>
+              <p>You're signed in.</p>
+              <div className="summary-card compact">
+                <div><span>Email</span><strong>{demoAccount.email}</strong></div>
+                <div><span>Status</span><strong>Active</strong></div>
+              </div>
+              <button className="primary-cta block" type="button" onClick={resetLogin}>
+                Continue shopping
+              </button>
             </div>
-          </div>
+          ) : loginState === "locked" ? (
+            <div className="locked-box">
+              <div className="lock-icon">
+                <Lock className="h-5 w-5" />
+              </div>
+              <h2>Account temporarily locked</h2>
+              <div className="timer-box">{formatTime(lockSeconds)}</div>
+              <p>Too many failed attempts. Try again later.</p>
+              <button className="secondary-cta block" type="button" onClick={resetLogin}>
+                Reset form
+              </button>
+            </div>
+          ) : (
+            <form className="auth-form" onSubmit={submitLogin}>
+              <h2>Sign in</h2>
 
-          <div className="grid gap-6">
-            <article className="rounded-[2rem] border border-white/10 bg-black/20 p-6 backdrop-blur-xl shadow-[0_24px_72px_rgba(0,0,0,0.28)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/80">Deliverable framing</p>
-              <h2 className="mt-3 font-display text-3xl text-white">A polished permanent web presentation for the SEC545 implementation.</h2>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-white/72">
-                The page is structured as a panoramic academic product demo rather than a generic one-box form. It explains the security story, provides an interactive registration/login flow, and visually separates the course deliverable from unrelated repositories.
-              </p>
-            </article>
+              {loginState === "error" ? <div className="notice error">Invalid email or password.</div> : null}
+              {loginState === "warning" ? (
+                <div className="notice warning">One attempt remaining before temporary lock.</div>
+              ) : null}
 
-            <article className="grid gap-4 rounded-[2rem] border border-white/10 bg-black/20 p-6 backdrop-blur-xl shadow-[0_24px_72px_rgba(0,0,0,0.28)] sm:grid-cols-3">
-              <div>
-                <p className="stat-label">1</p>
-                <p className="stat-title">Dedicated repo</p>
-                <p className="stat-copy">The work now belongs to an isolated SEC545 codebase.</p>
-              </div>
-              <div>
-                <p className="stat-label">2</p>
-                <p className="stat-title">Use cases</p>
-                <p className="stat-copy">Register Account and Login are presented as the core functional scope.</p>
-              </div>
-              <div>
-                <p className="stat-label">2</p>
-                <p className="stat-title">Mitigations</p>
-                <p className="stat-copy">Strong Authentication and Account Lockout are demonstrated clearly.</p>
-              </div>
-            </article>
-          </div>
+              <label>
+                <span>Email</span>
+                <input
+                  value={loginForm.email}
+                  onChange={(event) => setLoginForm((current) => ({ ...current, email: event.target.value }))}
+                  className={loginState === "error" || loginState === "warning" ? "field-error" : ""}
+                />
+              </label>
+
+              <label>
+                <span>Password</span>
+                <div className="password-field">
+                  <input
+                    type={showLoginPassword ? "text" : "password"}
+                    value={loginForm.password}
+                    onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))}
+                    className={loginState === "error" || loginState === "warning" ? "field-error" : ""}
+                    placeholder="Enter password"
+                  />
+                  <button type="button" className="icon-button" onClick={() => setShowLoginPassword((value) => !value)}>
+                    {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </label>
+
+              {failedAttempts > 0 ? (
+                <div className="attempts-row">
+                  <span>{failedAttempts}/5</span>
+                  <div className="attempts-dots">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <i key={index} className={index < failedAttempts ? "filled" : ""} />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {failedAttempts >= 4 ? (
+                <div className="captcha-row">
+                  <label className="check-row">
+                    <input type="checkbox" defaultChecked />
+                    <span>Verify you're human</span>
+                  </label>
+                  <span className="captcha-mark">reCAPTCHA</span>
+                </div>
+              ) : null}
+
+              <button className="primary-cta block" type="submit">
+                Sign in
+              </button>
+              <button className="text-action" type="button" onClick={() => setTab("register")}>
+                Need a new account?
+              </button>
+            </form>
+          )}
         </section>
       </main>
+
+      <section className="feature-strip">
+        <div>
+          <Sparkles className="h-4 w-4" />
+          Same-day bouquets
+        </div>
+        <div>
+          <ShieldCheck className="h-4 w-4" />
+          Secure account access
+        </div>
+        <div>
+          <ShoppingBag className="h-4 w-4" />
+          Fast repeat orders
+        </div>
+      </section>
     </div>
   );
 }
