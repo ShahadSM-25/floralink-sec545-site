@@ -40,3 +40,6 @@
 - [ ] Recover the exact Manus-side environment expectations and explain how to recreate the database setup locally on Ubuntu step by step.
 - [x] Add comprehensive input validation for all registration, login, and password-reset input fields across frontend and backend.
 - [x] Push the latest current FloraLink project state, including the new input-validation changes, to GitHub.
+- [x] Replace the current simulated human-check flow with a real CAPTCHA service across the authentication forms.
+- [x] Add secure server-side CAPTCHA token verification for authentication requests.
+- [x] Configure the required CAPTCHA secrets and test the integration end to end.

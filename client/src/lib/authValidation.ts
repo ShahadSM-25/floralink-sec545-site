@@ -4,17 +4,20 @@ export type RegisterValidationInput = {
   phone: string;
   password: string;
   confirmPassword: string;
+  captchaToken: string;
 };
 
 export type LoginValidationInput = {
   email: string;
   password: string;
+  captchaToken: string;
 };
 
 export type ForgotValidationInput = {
   email: string;
   newPassword: string;
   confirmPassword: string;
+  captchaToken: string;
 };
 
 const fullNamePattern = /^[\p{L}][\p{L}\s'.-]*$/u;
@@ -48,6 +51,10 @@ export function isEmailValid(value: string) {
   return emailPattern.test(value.trim());
 }
 
+export function hasCaptchaToken(value: string) {
+  return value.trim().length > 0;
+}
+
 export function getPasswordRules(password: string) {
   return [
     { label: "8+ characters", passed: password.length >= 8 },
@@ -61,7 +68,7 @@ export function getPasswordRules(password: string) {
   ];
 }
 
-export function getRegisterFieldErrors(form: RegisterValidationInput, humanVerified: boolean) {
+export function getRegisterFieldErrors(form: RegisterValidationInput) {
   const errors = {
     fullName: "",
     email: "",
@@ -102,18 +109,14 @@ export function getRegisterFieldErrors(form: RegisterValidationInput, humanVerif
     errors.confirmPassword = "Passwords do not match.";
   }
 
-  if (!humanVerified) {
-    errors.captcha = "Please confirm that you are human.";
+  if (!hasCaptchaToken(form.captchaToken)) {
+    errors.captcha = "Please complete the reCAPTCHA verification.";
   }
 
   return errors;
 }
 
-export function getLoginFieldErrors(
-  form: LoginValidationInput,
-  humanVerificationRequired: boolean,
-  humanVerified: boolean
-) {
+export function getLoginFieldErrors(form: LoginValidationInput) {
   const errors = {
     email: "",
     password: "",
@@ -130,8 +133,8 @@ export function getLoginFieldErrors(
     errors.password = "Password is required.";
   }
 
-  if (humanVerificationRequired && !humanVerified) {
-    errors.captcha = "Please confirm that you are human before signing in again.";
+  if (!hasCaptchaToken(form.captchaToken)) {
+    errors.captcha = "Please complete the reCAPTCHA verification before signing in.";
   }
 
   return errors;
@@ -142,6 +145,7 @@ export function getForgotFieldErrors(form: ForgotValidationInput) {
     email: "",
     newPassword: "",
     confirmPassword: "",
+    captcha: "",
   };
 
   if (form.email.trim() === "") {
@@ -161,6 +165,10 @@ export function getForgotFieldErrors(form: ForgotValidationInput) {
     errors.confirmPassword = "Please confirm the new password.";
   } else if (form.newPassword !== form.confirmPassword) {
     errors.confirmPassword = "Passwords do not match.";
+  }
+
+  if (!hasCaptchaToken(form.captchaToken)) {
+    errors.captcha = "Please complete the reCAPTCHA verification before saving the new password.";
   }
 
   return errors;

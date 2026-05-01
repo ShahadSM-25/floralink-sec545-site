@@ -6,6 +6,7 @@ import {
   resetCustomerAccountPassword,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { verifyRecaptchaToken } from "./_core/recaptcha";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 
@@ -36,6 +37,7 @@ const passwordSchema = z
   .refine(value => !/(password|123456|qwerty|welcome)/i.test(value), {
     message: "Password is too common",
   });
+const captchaTokenSchema = z.string().trim().min(1).max(4096);
 
 export const appRouter = router({
   system: systemRouter,
@@ -55,10 +57,17 @@ export const appRouter = router({
           email: emailSchema,
           phone: phoneSchema,
           password: passwordSchema,
+          captchaToken: captchaTokenSchema,
         }),
       )
-      .mutation(async ({ input }) => {
-        const result = await registerCustomerAccount(input);
+      .mutation(async ({ ctx, input }) => {
+        await verifyRecaptchaToken(input.captchaToken, ctx.req.ip);
+        const result = await registerCustomerAccount({
+          fullName: input.fullName,
+          email: input.email,
+          phone: input.phone,
+          password: input.password,
+        });
         if (!result.success) {
           return result;
         }
@@ -73,10 +82,15 @@ export const appRouter = router({
         z.object({
           email: emailSchema,
           password: z.string().max(128).min(1),
+          captchaToken: captchaTokenSchema,
         }),
       )
-      .mutation(async ({ input }) => {
-        const result = await authenticateCustomerAccount(input);
+      .mutation(async ({ ctx, input }) => {
+        await verifyRecaptchaToken(input.captchaToken, ctx.req.ip);
+        const result = await authenticateCustomerAccount({
+          email: input.email,
+          password: input.password,
+        });
         if (!result.success) {
           return result;
         }
@@ -91,10 +105,15 @@ export const appRouter = router({
         z.object({
           email: emailSchema,
           newPassword: passwordSchema,
+          captchaToken: captchaTokenSchema,
         }),
       )
-      .mutation(async ({ input }) => {
-        const result = await resetCustomerAccountPassword(input);
+      .mutation(async ({ ctx, input }) => {
+        await verifyRecaptchaToken(input.captchaToken, ctx.req.ip);
+        const result = await resetCustomerAccountPassword({
+          email: input.email,
+          newPassword: input.newPassword,
+        });
         if (!result.success) {
           return result;
         }

@@ -7,10 +7,18 @@ const dbMocks = vi.hoisted(() => ({
   resetCustomerAccountPassword: vi.fn(),
 }));
 
+const recaptchaMocks = vi.hoisted(() => ({
+  verifyRecaptchaToken: vi.fn(),
+}));
+
 vi.mock("./db", () => ({
   registerCustomerAccount: dbMocks.registerCustomerAccount,
   authenticateCustomerAccount: dbMocks.authenticateCustomerAccount,
   resetCustomerAccountPassword: dbMocks.resetCustomerAccountPassword,
+}));
+
+vi.mock("./_core/recaptcha", () => ({
+  verifyRecaptchaToken: recaptchaMocks.verifyRecaptchaToken,
 }));
 
 import { appRouter } from "./routers";
@@ -21,6 +29,7 @@ function createPublicContext(): TrpcContext {
     req: {
       protocol: "https",
       headers: {},
+      ip: "127.0.0.1",
     } as TrpcContext["req"],
     res: {
       clearCookie: vi.fn(),
@@ -31,6 +40,7 @@ function createPublicContext(): TrpcContext {
 describe("auth credential routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    recaptchaMocks.verifyRecaptchaToken.mockResolvedValue(undefined);
   });
 
   it("registers a new account through the database layer", async () => {
@@ -52,8 +62,10 @@ describe("auth credential routes", () => {
       email: "sara.test@example.com",
       phone: "+966551112233",
       password: "Bloom@2028",
+      captchaToken: "captcha-token",
     });
 
+    expect(recaptchaMocks.verifyRecaptchaToken).toHaveBeenCalledWith("captcha-token", "127.0.0.1");
     expect(dbMocks.registerCustomerAccount).toHaveBeenCalledWith({
       fullName: "Sara Test",
       email: "sara.test@example.com",
@@ -78,6 +90,7 @@ describe("auth credential routes", () => {
       email: "sara.test@example.com",
       phone: "+966551112233",
       password: "Bloom@2028",
+      captchaToken: "captcha-token",
     });
 
     expect(result).toEqual({
@@ -95,6 +108,7 @@ describe("auth credential routes", () => {
         email: "sara.test@example.com",
         phone: "+966551112233",
         password: "Bloom@2028",
+        captchaToken: "captcha-token",
       })
     ).rejects.toThrow();
 
@@ -110,6 +124,7 @@ describe("auth credential routes", () => {
         email: "sara.test@example.com",
         phone: "abc123",
         password: "Bloom@2028",
+        captchaToken: "captcha-token",
       })
     ).rejects.toThrow();
 
@@ -126,9 +141,27 @@ describe("auth credential routes", () => {
         email,
         phone: "+966551112233",
         password: "Bloom@2028",
+        captchaToken: "captcha-token",
       })
     ).rejects.toThrow();
 
+    expect(dbMocks.registerCustomerAccount).not.toHaveBeenCalled();
+  });
+
+  it("rejects registration when the captcha token is missing", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.register({
+        fullName: "Sara Test",
+        email: "sara.test@example.com",
+        phone: "+966551112233",
+        password: "Bloom@2028",
+        captchaToken: "",
+      })
+    ).rejects.toThrow();
+
+    expect(recaptchaMocks.verifyRecaptchaToken).not.toHaveBeenCalled();
     expect(dbMocks.registerCustomerAccount).not.toHaveBeenCalled();
   });
 
@@ -149,8 +182,10 @@ describe("auth credential routes", () => {
     const result = await caller.auth.login({
       email: "sara.test@example.com",
       password: "Bloom@2028",
+      captchaToken: "captcha-token",
     });
 
+    expect(recaptchaMocks.verifyRecaptchaToken).toHaveBeenCalledWith("captcha-token", "127.0.0.1");
     expect(dbMocks.authenticateCustomerAccount).toHaveBeenCalledWith({
       email: "sara.test@example.com",
       password: "Bloom@2028",
@@ -168,6 +203,7 @@ describe("auth credential routes", () => {
     const result = await caller.auth.login({
       email: "sara.test@example.com",
       password: "Wrong@2028",
+      captchaToken: "captcha-token",
     });
 
     expect(result).toEqual({
@@ -183,6 +219,7 @@ describe("auth credential routes", () => {
       caller.auth.login({
         email: "not-an-email",
         password: "Bloom@2028",
+        captchaToken: "captcha-token",
       })
     ).rejects.toThrow();
 
@@ -196,9 +233,25 @@ describe("auth credential routes", () => {
       caller.auth.login({
         email: "sara.test@example.com",
         password: `A${"b".repeat(127)}1!`,
+        captchaToken: "captcha-token",
       })
     ).rejects.toThrow();
 
+    expect(dbMocks.authenticateCustomerAccount).not.toHaveBeenCalled();
+  });
+
+  it("rejects login when the captcha token is missing", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.login({
+        email: "sara.test@example.com",
+        password: "Bloom@2028",
+        captchaToken: "",
+      })
+    ).rejects.toThrow();
+
+    expect(recaptchaMocks.verifyRecaptchaToken).not.toHaveBeenCalled();
     expect(dbMocks.authenticateCustomerAccount).not.toHaveBeenCalled();
   });
 
@@ -219,8 +272,10 @@ describe("auth credential routes", () => {
     const result = await caller.auth.resetPassword({
       email: "sara.test@example.com",
       newPassword: "Bloom@2029",
+      captchaToken: "captcha-token",
     });
 
+    expect(recaptchaMocks.verifyRecaptchaToken).toHaveBeenCalledWith("captcha-token", "127.0.0.1");
     expect(dbMocks.resetCustomerAccountPassword).toHaveBeenCalledWith({
       email: "sara.test@example.com",
       newPassword: "Bloom@2029",
@@ -238,6 +293,7 @@ describe("auth credential routes", () => {
     const result = await caller.auth.resetPassword({
       email: "missing@example.com",
       newPassword: "Bloom@2029",
+      captchaToken: "captcha-token",
     });
 
     expect(result).toEqual({
@@ -253,6 +309,7 @@ describe("auth credential routes", () => {
       caller.auth.resetPassword({
         email: "sara.test@example.com",
         newPassword: "weakpass",
+        captchaToken: "captcha-token",
       })
     ).rejects.toThrow();
 
@@ -266,9 +323,25 @@ describe("auth credential routes", () => {
       caller.auth.resetPassword({
         email: "sara.test@example.com",
         newPassword: `A${"b".repeat(127)}1!`,
+        captchaToken: "captcha-token",
       })
     ).rejects.toThrow();
 
+    expect(dbMocks.resetCustomerAccountPassword).not.toHaveBeenCalled();
+  });
+
+  it("rejects password reset when the captcha token is missing", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.resetPassword({
+        email: "sara.test@example.com",
+        newPassword: "Bloom@2029",
+        captchaToken: "",
+      })
+    ).rejects.toThrow();
+
+    expect(recaptchaMocks.verifyRecaptchaToken).not.toHaveBeenCalled();
     expect(dbMocks.resetCustomerAccountPassword).not.toHaveBeenCalled();
   });
 });

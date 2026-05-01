@@ -16,6 +16,7 @@ import {
   normalizeEmail,
   normalizeFullName,
 } from "@/lib/authValidation";
+import { RecaptchaWidget } from "@/components/RecaptchaWidget";
 import { trpc } from "@/lib/trpc";
 
 type RegisterForm = {
@@ -24,17 +25,20 @@ type RegisterForm = {
   phone: string;
   password: string;
   confirmPassword: string;
+  captchaToken: string;
 };
 
 type LoginForm = {
   email: string;
   password: string;
+  captchaToken: string;
 };
 
 type ForgotForm = {
   email: string;
   newPassword: string;
   confirmPassword: string;
+  captchaToken: string;
 };
 
 type AccountSummary = {
@@ -54,17 +58,20 @@ const emptyRegister: RegisterForm = {
   phone: "",
   password: "",
   confirmPassword: "",
+  captchaToken: "",
 };
 
 const emptyLogin: LoginForm = {
   email: defaultLoginEmail,
   password: "",
+  captchaToken: "",
 };
 
 const emptyForgot: ForgotForm = {
   email: "",
   newPassword: "",
   confirmPassword: "",
+  captchaToken: "",
 };
 
 function formatTime(totalSeconds: number) {
@@ -88,12 +95,16 @@ export default function Home() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
-  const [registerHumanVerified, setRegisterHumanVerified] = useState(true);
-  const [loginHumanVerified, setLoginHumanVerified] = useState(true);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockSeconds, setLockSeconds] = useState(0);
   const [registeredAccount, setRegisteredAccount] = useState<AccountSummary | null>(null);
   const [signedInAccount, setSignedInAccount] = useState<AccountSummary | null>(null);
+  const [registerRemoteError, setRegisterRemoteError] = useState("");
+  const [loginRemoteError, setLoginRemoteError] = useState("");
+  const [forgotRemoteError, setForgotRemoteError] = useState("");
+  const [registerCaptchaVersion, setRegisterCaptchaVersion] = useState(0);
+  const [loginCaptchaVersion, setLoginCaptchaVersion] = useState(0);
+  const [forgotCaptchaVersion, setForgotCaptchaVersion] = useState(0);
 
   const registerMutation = trpc.auth.register.useMutation();
   const loginMutation = trpc.auth.login.useMutation();
@@ -117,16 +128,8 @@ export default function Home() {
   const registerPasswordRules = useMemo(() => getPasswordRules(registerForm.password), [registerForm.password]);
   const registerPassedRules = registerPasswordRules.filter(item => item.passed).length;
   const registerPasswordProgress = `${(registerPassedRules / registerPasswordRules.length) * 100}%`;
-  const loginHumanVerificationRequired = failedAttempts >= 4;
-
-  const registerFieldErrors = useMemo(
-    () => getRegisterFieldErrors(registerForm, registerHumanVerified),
-    [registerForm, registerHumanVerified]
-  );
-  const loginFieldErrors = useMemo(
-    () => getLoginFieldErrors(loginForm, loginHumanVerificationRequired, loginHumanVerified),
-    [loginForm, loginHumanVerificationRequired, loginHumanVerified]
-  );
+  const registerFieldErrors = useMemo(() => getRegisterFieldErrors(registerForm), [registerForm]);
+  const loginFieldErrors = useMemo(() => getLoginFieldErrors(loginForm), [loginForm]);
   const forgotPasswordRules = useMemo(() => getPasswordRules(forgotForm.newPassword), [forgotForm.newPassword]);
   const forgotPassedRules = forgotPasswordRules.filter(item => item.passed).length;
   const forgotPasswordProgress = `${(forgotPassedRules / forgotPasswordRules.length) * 100}%`;
@@ -136,128 +139,168 @@ export default function Home() {
   const loginFormValid = Object.values(loginFieldErrors).every(message => message === "");
   const forgotFormValid = Object.values(forgotFieldErrors).every(message => message === "");
 
+  function getRecaptchaErrorMessage(error: unknown, fallback: string) {
+    const message = error instanceof Error ? error.message : "";
+    if (/recaptcha/i.test(message)) {
+      return "reCAPTCHA verification expired or failed. Please complete it again.";
+    }
+    return fallback;
+  }
+
   async function submitRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedEmail = normalizeEmail(registerForm.email);
 
-    if (!registerFormValid) {
+       if (!registerFormValid) {
+      setRegisterRemoteError("");
       setRegisterState("error");
       return;
     }
 
-    const result = await registerMutation.mutateAsync({
-      fullName: normalizeFullName(registerForm.fullName),
-      email: normalizedEmail,
-      phone: registerForm.phone.trim(),
-      password: registerForm.password,
-    });
-
-    if (!result.success) {
-      setRegisterState(result.reason === "exists" ? "exists" : "error");
-      return;
+    try {
+      setRegisterRemoteError("");
+      const result = await registerMutation.mutateAsync({
+        fullName: normalizeFullName(registerForm.fullName),
+        email: normalizedEmail,
+        phone: registerForm.phone.trim(),
+        password: registerForm.password,
+        captchaToken: registerForm.captchaToken,
+      });
+      if (!result.success) {
+        setRegisterState(result.reason === "exists" ? "exists" : "error");
+        return;
+      }
+      setRegisteredAccount(result.account);
+      setLoginForm({ email: result.account.email, password: "", captchaToken: "" });
+      setRegisterCaptchaVersion(current => current + 1);
+      setRegisterForm(emptyRegister);
+      setRegisterState("success");
+    } catch (error) {
+      setRegisterState("error");
+      setRegisterRemoteError(getRecaptchaErrorMessage(error, "Unable to create the account right now."));
+      setRegisterCaptchaVersion(current => current + 1);
+      setRegisterForm(current => ({ ...current, captchaToken: "" }));
     }
-
-    setRegisteredAccount(result.account);
-    setLoginForm({ email: result.account.email, password: "" });
-    setRegisterState("success");
   }
 
   async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (lockSeconds > 0) {
+      if (lockSeconds > 0) {
+      setLoginRemoteError("");
       setLoginState("locked");
       return;
     }
-
     if (!loginFormValid) {
+      setLoginRemoteError("");
       setLoginState("error");
       return;
     }
 
-    const result = await loginMutation.mutateAsync({
-      email: normalizeEmail(loginForm.email),
-      password: loginForm.password,
-    });
-
-    if (result.success) {
-      setSignedInAccount(result.account);
-      setLoginState("success");
-      setFailedAttempts(0);
-      return;
+    try {
+      setLoginRemoteError("");
+      const result = await loginMutation.mutateAsync({
+        email: normalizeEmail(loginForm.email),
+        password: loginForm.password,
+        captchaToken: loginForm.captchaToken,
+      });
+      if (result.success) {
+        setSignedInAccount(result.account);
+        setLoginState("success");
+        setFailedAttempts(0);
+        return;
+      }
+      const next = failedAttempts + 1;
+      setFailedAttempts(next);
+      if (next >= 5) {
+        setLockSeconds(15 * 60);
+        setLoginState("locked");
+        return;
+      }
+      if (next === 4) {
+        setLoginState("warning");
+        return;
+      }
+      setLoginState("error");
+    } catch (error) {
+      setLoginState("error");
+      setLoginRemoteError(getRecaptchaErrorMessage(error, "Unable to sign in right now."));
+      setLoginCaptchaVersion(current => current + 1);
+      setLoginForm(current => ({ ...current, captchaToken: "" }));
     }
-
-    const next = failedAttempts + 1;
-    setFailedAttempts(next);
-
-    if (next >= 5) {
-      setLockSeconds(15 * 60);
-      setLoginState("locked");
-      return;
-    }
-
-    if (next === 4) {
-      setLoginState("warning");
-      return;
-    }
-
-    setLoginState("error");
   }
 
   async function submitForgotPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!forgotFormValid) {
+     if (!forgotFormValid) {
+      setForgotRemoteError("");
       setForgotState("error");
       return;
     }
 
-    const result = await resetPasswordMutation.mutateAsync({
-      email: normalizeEmail(forgotForm.email),
-      newPassword: forgotForm.newPassword,
-    });
-
-    if (!result.success) {
-      setForgotState(result.reason === "missing" ? "missing" : "error");
-      return;
+    try {
+      setForgotRemoteError("");
+      const result = await resetPasswordMutation.mutateAsync({
+        email: normalizeEmail(forgotForm.email),
+        newPassword: forgotForm.newPassword,
+        captchaToken: forgotForm.captchaToken,
+      });
+      if (!result.success) {
+        setForgotState(result.reason === "missing" ? "missing" : "error");
+        return;
+      }
+      setForgotState("success");
+      setLoginForm({ email: result.account.email, password: "", captchaToken: "" });
+      setForgotCaptchaVersion(current => current + 1);
+      setForgotForm(emptyForgot);
+      setLoginState("idle");
+      setFailedAttempts(0);
+      setLockSeconds(0);
+    } catch (error) {
+      setForgotState("error");
+      setForgotRemoteError(getRecaptchaErrorMessage(error, "Unable to update the password right now."));
+      setForgotCaptchaVersion(current => current + 1);
+      setForgotForm(current => ({ ...current, captchaToken: "" }));
     }
-
-    setForgotState("success");
-    setLoginForm({ email: result.account.email, password: "" });
-    setLoginState("idle");
-    setFailedAttempts(0);
-    setLockSeconds(0);
+;
   }
 
   function resetRegister() {
     setRegisterForm(emptyRegister);
     setRegisterState("idle");
     setRegisteredAccount(null);
+    setRegisterRemoteError("");
+    setRegisterCaptchaVersion(current => current + 1);
     setShowRegisterPassword(false);
     setShowConfirmPassword(false);
-    setRegisterHumanVerified(true);
   }
 
   function resetLogin() {
-    setLoginForm({ email: defaultLoginEmail, password: "" });
+    setLoginForm(emptyLogin);
     setLoginState("idle");
+    setLoginRemoteError("");
+    setLoginCaptchaVersion(current => current + 1);
     setFailedAttempts(0);
     setLockSeconds(0);
     setSignedInAccount(null);
     setShowLoginPassword(false);
-    setLoginHumanVerified(true);
   }
 
   function resetForgot() {
     setForgotForm(emptyForgot);
     setForgotState("idle");
+    setForgotRemoteError("");
+    setForgotCaptchaVersion(current => current + 1);
     setShowForgotPassword(false);
     setShowForgotConfirmPassword(false);
   }
 
   function openForgotPassword() {
-    setForgotForm({ email: loginForm.email, newPassword: "", confirmPassword: "" });
+    setForgotForm({ email: loginForm.email, newPassword: "", confirmPassword: "", captchaToken: "" });
     setForgotState("idle");
+    setForgotRemoteError("");
+    setForgotCaptchaVersion(current => current + 1);
     setShowForgotPassword(false);
     setShowForgotConfirmPassword(false);
     setTab("forgot");
@@ -341,8 +384,8 @@ export default function Home() {
                 <h2>Create your account</h2>
 
                 {registerState === "exists" ? <div className="notice error">This email is already registered.</div> : null}
-                {registerState === "error" ? <div className="notice error">Please check the highlighted fields.</div> : null}
-                {registerMutation.error ? <div className="notice error">Unable to create the account right now.</div> : null}
+                {registerState === "error" && !registerRemoteError ? <div className="notice error">Please check the highlighted fields.</div> : null}
+                {registerRemoteError ? <div className="notice error">{registerRemoteError}</div> : null}
 
                 <label>
                   <span>Full name</span>
@@ -478,24 +521,16 @@ export default function Home() {
                   <small className="field-note error">{registerFieldErrors.confirmPassword}</small>
                 ) : null}
 
-                <div className="captcha-row">
-                  <label className="check-row">
-                    <input
-                      type="checkbox"
-                      checked={registerHumanVerified}
-                      onChange={event => {
-                        setRegisterState("idle");
-                        setRegisterHumanVerified(event.target.checked);
-                      }}
-                      aria-invalid={registerFieldErrors.captcha ? "true" : "false"}
-                    />
-                    <span>I'm not a robot</span>
-                  </label>
-                  <span className="captcha-mark">reCAPTCHA</span>
-                </div>
-                {registerFieldErrors.captcha && registerState === "error" ? (
-                  <small className="field-note error">{registerFieldErrors.captcha}</small>
-                ) : null}
+                <RecaptchaWidget
+                  key={registerCaptchaVersion}
+                  id="register-recaptcha"
+                  label="Security verification"
+                  errorMessage={registerFieldErrors.captcha && registerState === "error" ? registerFieldErrors.captcha : ""}
+                  onTokenChange={token => {
+                    setRegisterState("idle");
+                    setRegisterForm(current => ({ ...current, captchaToken: token }));
+                  }}
+                />
 
                 <button className="primary-cta block" type="submit" disabled={registerMutation.isPending}>
                   {registerMutation.isPending ? (
@@ -534,12 +569,10 @@ export default function Home() {
                 {forgotState === "missing" ? (
                   <div className="notice error">We couldn't find an account with this email.</div>
                 ) : null}
-                {forgotState === "error" ? (
+                {forgotState === "error" && !forgotRemoteError ? (
                   <div className="notice error">Please review the email and password details.</div>
                 ) : null}
-                {resetPasswordMutation.error ? (
-                  <div className="notice error">Unable to update the password right now.</div>
-                ) : null}
+                {forgotRemoteError ? <div className="notice error">{forgotRemoteError}</div> : null}
 
                 <label>
                   <span>Email</span>
@@ -629,6 +662,17 @@ export default function Home() {
                   <small className="field-note error">{forgotFieldErrors.confirmPassword}</small>
                 ) : null}
 
+                <RecaptchaWidget
+                  key={forgotCaptchaVersion}
+                  id="forgot-recaptcha"
+                  label="Security verification"
+                  errorMessage={forgotFieldErrors.captcha && forgotState === "error" ? forgotFieldErrors.captcha : ""}
+                  onTokenChange={token => {
+                    setForgotState("idle");
+                    setForgotForm(current => ({ ...current, captchaToken: token }));
+                  }}
+                />
+
                 <button className="primary-cta block" type="submit" disabled={resetPasswordMutation.isPending}>
                   {resetPasswordMutation.isPending ? (
                     <>
@@ -688,7 +732,8 @@ export default function Home() {
             <form className="auth-form" onSubmit={submitLogin}>
               <h2>Sign in</h2>
 
-              {loginState === "error" ? <div className="notice error">Invalid email or password.</div> : null}
+              {loginState === "error" && !loginRemoteError ? <div className="notice error">Invalid email or password.</div> : null}
+              {loginRemoteError ? <div className="notice error">{loginRemoteError}</div> : null}
               {loginState === "warning" ? (
                 <div className="notice warning">One attempt remaining before temporary lock.</div>
               ) : null}
@@ -759,28 +804,16 @@ export default function Home() {
                 </div>
               ) : null}
 
-              {loginHumanVerificationRequired ? (
-                <>
-                  <div className="captcha-row">
-                    <label className="check-row">
-                      <input
-                        type="checkbox"
-                        checked={loginHumanVerified}
-                        onChange={event => {
-                          setLoginState("idle");
-                          setLoginHumanVerified(event.target.checked);
-                        }}
-                        aria-invalid={loginFieldErrors.captcha ? "true" : "false"}
-                      />
-                      <span>Verify you're human</span>
-                    </label>
-                    <span className="captcha-mark">reCAPTCHA</span>
-                  </div>
-                  {loginFieldErrors.captcha && (loginState === "error" || loginState === "warning") ? (
-                    <small className="field-note error">{loginFieldErrors.captcha}</small>
-                  ) : null}
-                </>
-              ) : null}
+              <RecaptchaWidget
+                key={loginCaptchaVersion}
+                id="login-recaptcha"
+                label="Security verification"
+                errorMessage={loginFieldErrors.captcha && (loginState === "error" || loginState === "warning") ? loginFieldErrors.captcha : ""}
+                onTokenChange={token => {
+                  setLoginState("idle");
+                  setLoginForm(current => ({ ...current, captchaToken: token }));
+                }}
+              />
 
               <button className="primary-cta block" type="submit" disabled={loginMutation.isPending}>
                 {loginMutation.isPending ? (
