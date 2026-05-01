@@ -8,6 +8,14 @@ import {
   ShieldCheck,
   ShoppingBag,
 } from "lucide-react";
+import {
+  getForgotFieldErrors,
+  getLoginFieldErrors,
+  getPasswordRules,
+  getRegisterFieldErrors,
+  normalizeEmail,
+  normalizeFullName,
+} from "@/lib/authValidation";
 import { trpc } from "@/lib/trpc";
 
 type RegisterForm = {
@@ -59,23 +67,6 @@ const emptyForgot: ForgotForm = {
   confirmPassword: "",
 };
 
-function normalizeEmail(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function getPasswordRules(password: string) {
-  return [
-    { label: "8+ characters", passed: password.length >= 8 },
-    { label: "Uppercase letter", passed: /[A-Z]/.test(password) },
-    { label: "Number", passed: /\d/.test(password) },
-    { label: "Special character", passed: /[^A-Za-z0-9]/.test(password) },
-    {
-      label: "Not common",
-      passed: password.length >= 8 && !/(password|123456|qwerty|welcome)/i.test(password),
-    },
-  ];
-}
-
 function formatTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
     .toString()
@@ -97,6 +88,8 @@ export default function Home() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
+  const [registerHumanVerified, setRegisterHumanVerified] = useState(true);
+  const [loginHumanVerified, setLoginHumanVerified] = useState(true);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockSeconds, setLockSeconds] = useState(0);
   const [registeredAccount, setRegisteredAccount] = useState<AccountSummary | null>(null);
@@ -123,32 +116,37 @@ export default function Home() {
 
   const registerPasswordRules = useMemo(() => getPasswordRules(registerForm.password), [registerForm.password]);
   const registerPassedRules = registerPasswordRules.filter(item => item.passed).length;
-  const registerPasswordStrong = registerPassedRules === registerPasswordRules.length;
   const registerPasswordProgress = `${(registerPassedRules / registerPasswordRules.length) * 100}%`;
-  const registerEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email);
-  const registerConfirmMatch =
-    registerForm.password.length > 0 && registerForm.password === registerForm.confirmPassword;
+  const loginHumanVerificationRequired = failedAttempts >= 4;
 
+  const registerFieldErrors = useMemo(
+    () => getRegisterFieldErrors(registerForm, registerHumanVerified),
+    [registerForm, registerHumanVerified]
+  );
+  const loginFieldErrors = useMemo(
+    () => getLoginFieldErrors(loginForm, loginHumanVerificationRequired, loginHumanVerified),
+    [loginForm, loginHumanVerificationRequired, loginHumanVerified]
+  );
   const forgotPasswordRules = useMemo(() => getPasswordRules(forgotForm.newPassword), [forgotForm.newPassword]);
   const forgotPassedRules = forgotPasswordRules.filter(item => item.passed).length;
-  const forgotPasswordStrong = forgotPassedRules === forgotPasswordRules.length;
   const forgotPasswordProgress = `${(forgotPassedRules / forgotPasswordRules.length) * 100}%`;
-  const forgotEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotForm.email);
-  const forgotConfirmMatch =
-    forgotForm.newPassword.length > 0 && forgotForm.newPassword === forgotForm.confirmPassword;
+  const forgotFieldErrors = useMemo(() => getForgotFieldErrors(forgotForm), [forgotForm]);
+
+  const registerFormValid = Object.values(registerFieldErrors).every(message => message === "");
+  const loginFormValid = Object.values(loginFieldErrors).every(message => message === "");
+  const forgotFormValid = Object.values(forgotFieldErrors).every(message => message === "");
 
   async function submitRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedEmail = normalizeEmail(registerForm.email);
-    const hasEmpty = Object.values(registerForm).some(value => value.trim() === "");
 
-    if (hasEmpty || !registerEmailValid || !registerPasswordStrong || !registerConfirmMatch) {
+    if (!registerFormValid) {
       setRegisterState("error");
       return;
     }
 
     const result = await registerMutation.mutateAsync({
-      fullName: registerForm.fullName.trim(),
+      fullName: normalizeFullName(registerForm.fullName),
       email: normalizedEmail,
       phone: registerForm.phone.trim(),
       password: registerForm.password,
@@ -169,6 +167,11 @@ export default function Home() {
 
     if (lockSeconds > 0) {
       setLoginState("locked");
+      return;
+    }
+
+    if (!loginFormValid) {
+      setLoginState("error");
       return;
     }
 
@@ -204,9 +207,7 @@ export default function Home() {
   async function submitForgotPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const hasEmpty = Object.values(forgotForm).some(value => value.trim() === "");
-
-    if (hasEmpty || !forgotEmailValid || !forgotPasswordStrong || !forgotConfirmMatch) {
+    if (!forgotFormValid) {
       setForgotState("error");
       return;
     }
@@ -234,6 +235,7 @@ export default function Home() {
     setRegisteredAccount(null);
     setShowRegisterPassword(false);
     setShowConfirmPassword(false);
+    setRegisterHumanVerified(true);
   }
 
   function resetLogin() {
@@ -243,6 +245,7 @@ export default function Home() {
     setLockSeconds(0);
     setSignedInAccount(null);
     setShowLoginPassword(false);
+    setLoginHumanVerified(true);
   }
 
   function resetForgot() {
@@ -344,39 +347,69 @@ export default function Home() {
                 <label>
                   <span>Full name</span>
                   <input
+                    type="text"
                     value={registerForm.fullName}
                     onChange={event => {
                       setRegisterState("idle");
                       setRegisterForm(current => ({ ...current, fullName: event.target.value }));
                     }}
-                    className={registerState === "error" && registerForm.fullName.trim() === "" ? "field-error" : ""}
+                    className={registerFieldErrors.fullName && (registerState === "error" || registerForm.fullName.trim() !== "") ? "field-error" : ""}
                     placeholder="Reem Alshareef"
+                    autoComplete="name"
+                    required
+                    minLength={2}
+                    maxLength={160}
+                    aria-invalid={registerFieldErrors.fullName ? "true" : "false"}
                   />
+                  {registerFieldErrors.fullName && (registerState === "error" || registerForm.fullName.trim() !== "") ? (
+                    <small className="field-note error">{registerFieldErrors.fullName}</small>
+                  ) : null}
                 </label>
 
                 <label>
                   <span>Email</span>
                   <input
+                    type="email"
                     value={registerForm.email}
                     onChange={event => {
                       setRegisterState("idle");
                       setRegisterForm(current => ({ ...current, email: event.target.value }));
                     }}
-                    className={registerState === "exists" || (registerState === "error" && !registerEmailValid) ? "field-error" : ""}
+                    className={registerState === "exists" || (registerFieldErrors.email && (registerState === "error" || registerForm.email.trim() !== "")) ? "field-error" : ""}
                     placeholder="reem@example.com"
+                    autoComplete="email"
+                    inputMode="email"
+                    required
+                    maxLength={320}
+                    aria-invalid={registerState === "exists" || !!registerFieldErrors.email}
                   />
+                  {registerState === "exists" ? <small className="field-note error">This email is already registered.</small> : null}
+                  {registerState !== "exists" && registerFieldErrors.email && (registerState === "error" || registerForm.email.trim() !== "") ? (
+                    <small className="field-note error">{registerFieldErrors.email}</small>
+                  ) : null}
                 </label>
 
                 <label>
                   <span>Phone</span>
                   <input
+                    type="tel"
                     value={registerForm.phone}
                     onChange={event => {
                       setRegisterState("idle");
                       setRegisterForm(current => ({ ...current, phone: event.target.value }));
                     }}
+                    className={registerFieldErrors.phone && (registerState === "error" || registerForm.phone.trim() !== "") ? "field-error" : ""}
                     placeholder="+966 50 123 4567"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    required
+                    minLength={7}
+                    maxLength={32}
+                    aria-invalid={registerFieldErrors.phone ? "true" : "false"}
                   />
+                  {registerFieldErrors.phone && (registerState === "error" || registerForm.phone.trim() !== "") ? (
+                    <small className="field-note error">{registerFieldErrors.phone}</small>
+                  ) : null}
                 </label>
 
                 <label>
@@ -389,8 +422,13 @@ export default function Home() {
                         setRegisterState("idle");
                         setRegisterForm(current => ({ ...current, password: event.target.value }));
                       }}
-                      className={registerState === "error" && !registerPasswordStrong ? "field-error" : ""}
+                      className={registerFieldErrors.password && (registerState === "error" || registerForm.password !== "") ? "field-error" : ""}
                       placeholder="Create password"
+                      autoComplete="new-password"
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      aria-invalid={registerFieldErrors.password ? "true" : "false"}
                     />
                     <button type="button" className="icon-button" onClick={() => setShowRegisterPassword(value => !value)}>
                       {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -409,6 +447,9 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+                {registerFieldErrors.password && (registerState === "error" || registerForm.password !== "") ? (
+                  <small className="field-note error">{registerFieldErrors.password}</small>
+                ) : null}
 
                 <label>
                   <span>Confirm password</span>
@@ -420,22 +461,41 @@ export default function Home() {
                         setRegisterState("idle");
                         setRegisterForm(current => ({ ...current, confirmPassword: event.target.value }));
                       }}
-                      className={registerState === "error" && !registerConfirmMatch ? "field-error" : ""}
+                      className={registerFieldErrors.confirmPassword && (registerState === "error" || registerForm.confirmPassword !== "") ? "field-error" : ""}
                       placeholder="Repeat password"
+                      autoComplete="new-password"
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      aria-invalid={registerFieldErrors.confirmPassword ? "true" : "false"}
                     />
                     <button type="button" className="icon-button" onClick={() => setShowConfirmPassword(value => !value)}>
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </label>
+                {registerFieldErrors.confirmPassword && (registerState === "error" || registerForm.confirmPassword !== "") ? (
+                  <small className="field-note error">{registerFieldErrors.confirmPassword}</small>
+                ) : null}
 
                 <div className="captcha-row">
                   <label className="check-row">
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={registerHumanVerified}
+                      onChange={event => {
+                        setRegisterState("idle");
+                        setRegisterHumanVerified(event.target.checked);
+                      }}
+                      aria-invalid={registerFieldErrors.captcha ? "true" : "false"}
+                    />
                     <span>I'm not a robot</span>
                   </label>
                   <span className="captcha-mark">reCAPTCHA</span>
                 </div>
+                {registerFieldErrors.captcha && registerState === "error" ? (
+                  <small className="field-note error">{registerFieldErrors.captcha}</small>
+                ) : null}
 
                 <button className="primary-cta block" type="submit" disabled={registerMutation.isPending}>
                   {registerMutation.isPending ? (
@@ -484,14 +544,23 @@ export default function Home() {
                 <label>
                   <span>Email</span>
                   <input
+                    type="email"
                     value={forgotForm.email}
                     onChange={event => {
                       setForgotState("idle");
                       setForgotForm(current => ({ ...current, email: event.target.value }));
                     }}
-                    className={forgotState !== "idle" && !forgotEmailValid ? "field-error" : ""}
+                    className={forgotFieldErrors.email && (forgotState === "error" || forgotState === "missing" || forgotForm.email.trim() !== "") ? "field-error" : ""}
                     placeholder="reem@example.com"
+                    autoComplete="email"
+                    inputMode="email"
+                    required
+                    maxLength={320}
+                    aria-invalid={forgotFieldErrors.email ? "true" : "false"}
                   />
+                  {forgotFieldErrors.email && (forgotState === "error" || forgotState === "missing" || forgotForm.email.trim() !== "") ? (
+                    <small className="field-note error">{forgotFieldErrors.email}</small>
+                  ) : null}
                 </label>
 
                 <label>
@@ -504,8 +573,13 @@ export default function Home() {
                         setForgotState("idle");
                         setForgotForm(current => ({ ...current, newPassword: event.target.value }));
                       }}
-                      className={forgotState === "error" && !forgotPasswordStrong ? "field-error" : ""}
+                      className={forgotFieldErrors.newPassword && (forgotState === "error" || forgotForm.newPassword !== "") ? "field-error" : ""}
                       placeholder="Create a new password"
+                      autoComplete="new-password"
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      aria-invalid={forgotFieldErrors.newPassword ? "true" : "false"}
                     />
                     <button type="button" className="icon-button" onClick={() => setShowForgotPassword(value => !value)}>
                       {showForgotPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -524,6 +598,9 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+                {forgotFieldErrors.newPassword && (forgotState === "error" || forgotForm.newPassword !== "") ? (
+                  <small className="field-note error">{forgotFieldErrors.newPassword}</small>
+                ) : null}
 
                 <label>
                   <span>Confirm new password</span>
@@ -535,14 +612,22 @@ export default function Home() {
                         setForgotState("idle");
                         setForgotForm(current => ({ ...current, confirmPassword: event.target.value }));
                       }}
-                      className={forgotState === "error" && !forgotConfirmMatch ? "field-error" : ""}
+                      className={forgotFieldErrors.confirmPassword && (forgotState === "error" || forgotForm.confirmPassword !== "") ? "field-error" : ""}
                       placeholder="Repeat new password"
+                      autoComplete="new-password"
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      aria-invalid={forgotFieldErrors.confirmPassword ? "true" : "false"}
                     />
                     <button type="button" className="icon-button" onClick={() => setShowForgotConfirmPassword(value => !value)}>
                       {showForgotConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </label>
+                {forgotFieldErrors.confirmPassword && (forgotState === "error" || forgotForm.confirmPassword !== "") ? (
+                  <small className="field-note error">{forgotFieldErrors.confirmPassword}</small>
+                ) : null}
 
                 <button className="primary-cta block" type="submit" disabled={resetPasswordMutation.isPending}>
                   {resetPasswordMutation.isPending ? (
@@ -612,13 +697,22 @@ export default function Home() {
               <label>
                 <span>Email</span>
                 <input
+                  type="email"
                   value={loginForm.email}
                   onChange={event => {
                     setLoginState("idle");
                     setLoginForm(current => ({ ...current, email: event.target.value }));
                   }}
-                  className={loginState === "error" || loginState === "warning" ? "field-error" : ""}
+                  className={loginFieldErrors.email && (loginState === "error" || loginState === "warning" || loginForm.email.trim() !== "") ? "field-error" : ""}
+                  autoComplete="email"
+                  inputMode="email"
+                  required
+                  maxLength={320}
+                  aria-invalid={loginFieldErrors.email ? "true" : "false"}
                 />
+                {loginFieldErrors.email && (loginState === "error" || loginState === "warning" || loginForm.email.trim() !== "") ? (
+                  <small className="field-note error">{loginFieldErrors.email}</small>
+                ) : null}
               </label>
 
               <label>
@@ -631,14 +725,22 @@ export default function Home() {
                       setLoginState("idle");
                       setLoginForm(current => ({ ...current, password: event.target.value }));
                     }}
-                    className={loginState === "error" || loginState === "warning" ? "field-error" : ""}
+                    className={loginFieldErrors.password && (loginState === "error" || loginState === "warning" || loginForm.password.trim() !== "") ? "field-error" : ""}
                     placeholder="Enter password"
+                    autoComplete="current-password"
+                    required
+                    minLength={1}
+                    maxLength={128}
+                    aria-invalid={loginFieldErrors.password ? "true" : "false"}
                   />
                   <button type="button" className="icon-button" onClick={() => setShowLoginPassword(value => !value)}>
                     {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </label>
+              {loginFieldErrors.password && (loginState === "error" || loginState === "warning" || loginForm.password.trim() !== "") ? (
+                <small className="field-note error">{loginFieldErrors.password}</small>
+              ) : null}
 
               <div className="inline-actions">
                 <button className="inline-link" type="button" onClick={openForgotPassword}>
@@ -657,14 +759,27 @@ export default function Home() {
                 </div>
               ) : null}
 
-              {failedAttempts >= 4 ? (
-                <div className="captcha-row">
-                  <label className="check-row">
-                    <input type="checkbox" defaultChecked />
-                    <span>Verify you're human</span>
-                  </label>
-                  <span className="captcha-mark">reCAPTCHA</span>
-                </div>
+              {loginHumanVerificationRequired ? (
+                <>
+                  <div className="captcha-row">
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={loginHumanVerified}
+                        onChange={event => {
+                          setLoginState("idle");
+                          setLoginHumanVerified(event.target.checked);
+                        }}
+                        aria-invalid={loginFieldErrors.captcha ? "true" : "false"}
+                      />
+                      <span>Verify you're human</span>
+                    </label>
+                    <span className="captcha-mark">reCAPTCHA</span>
+                  </div>
+                  {loginFieldErrors.captcha && (loginState === "error" || loginState === "warning") ? (
+                    <small className="field-note error">{loginFieldErrors.captcha}</small>
+                  ) : null}
+                </>
               ) : null}
 
               <button className="primary-cta block" type="submit" disabled={loginMutation.isPending}>

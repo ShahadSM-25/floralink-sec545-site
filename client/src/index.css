@@ -413,6 +413,18 @@
     box-shadow: 0 0 0 4px rgba(222, 139, 131, 0.08);
   }
 
+  .field-note {
+    display: block;
+    margin-top: 0.42rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: #6b7a71;
+  }
+
+  .field-note.error {
+    color: #b2574f;
+  }
+
   .password-field {
     position: relative;
   }

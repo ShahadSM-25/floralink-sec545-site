@@ -1,0 +1,167 @@
+export type RegisterValidationInput = {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+};
+
+export type LoginValidationInput = {
+  email: string;
+  password: string;
+};
+
+export type ForgotValidationInput = {
+  email: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+const fullNamePattern = /^[\p{L}][\p{L}\s'.-]*$/u;
+const phonePattern = /^\+?[0-9()\-\s]+$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+export function normalizeFullName(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+export function countDigits(value: string) {
+  return value.replace(/\D/g, "").length;
+}
+
+export function isFullNameValid(value: string) {
+  const normalized = normalizeFullName(value);
+  return normalized.length >= 2 && normalized.length <= 160 && fullNamePattern.test(normalized);
+}
+
+export function isPhoneValid(value: string) {
+  const trimmed = value.trim();
+  const digits = countDigits(trimmed);
+  return trimmed.length >= 7 && trimmed.length <= 32 && phonePattern.test(trimmed) && digits >= 7 && digits <= 15;
+}
+
+export function isEmailValid(value: string) {
+  return emailPattern.test(value.trim());
+}
+
+export function getPasswordRules(password: string) {
+  return [
+    { label: "8+ characters", passed: password.length >= 8 },
+    { label: "Uppercase letter", passed: /[A-Z]/.test(password) },
+    { label: "Number", passed: /\d/.test(password) },
+    { label: "Special character", passed: /[^A-Za-z0-9]/.test(password) },
+    {
+      label: "Not common",
+      passed: password.length >= 8 && !/(password|123456|qwerty|welcome)/i.test(password),
+    },
+  ];
+}
+
+export function getRegisterFieldErrors(form: RegisterValidationInput, humanVerified: boolean) {
+  const errors = {
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+    captcha: "",
+  };
+
+  if (form.fullName.trim() === "") {
+    errors.fullName = "Full name is required.";
+  } else if (!isFullNameValid(form.fullName)) {
+    errors.fullName = "Use at least 2 letters and only letters, spaces, apostrophes, periods, or hyphens.";
+  }
+
+  if (form.email.trim() === "") {
+    errors.email = "Email is required.";
+  } else if (!isEmailValid(form.email)) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  if (form.phone.trim() === "") {
+    errors.phone = "Phone number is required.";
+  } else if (!isPhoneValid(form.phone)) {
+    errors.phone = "Enter 7 to 15 digits using numbers, spaces, parentheses, hyphens, and an optional leading +.";
+  }
+
+  const passwordRules = getPasswordRules(form.password);
+  if (form.password === "") {
+    errors.password = "Password is required.";
+  } else if (!passwordRules.every(rule => rule.passed)) {
+    errors.password = "Password must satisfy all listed security rules.";
+  }
+
+  if (form.confirmPassword === "") {
+    errors.confirmPassword = "Please confirm your password.";
+  } else if (form.password !== form.confirmPassword) {
+    errors.confirmPassword = "Passwords do not match.";
+  }
+
+  if (!humanVerified) {
+    errors.captcha = "Please confirm that you are human.";
+  }
+
+  return errors;
+}
+
+export function getLoginFieldErrors(
+  form: LoginValidationInput,
+  humanVerificationRequired: boolean,
+  humanVerified: boolean
+) {
+  const errors = {
+    email: "",
+    password: "",
+    captcha: "",
+  };
+
+  if (form.email.trim() === "") {
+    errors.email = "Email is required.";
+  } else if (!isEmailValid(form.email)) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  if (form.password.trim() === "") {
+    errors.password = "Password is required.";
+  }
+
+  if (humanVerificationRequired && !humanVerified) {
+    errors.captcha = "Please confirm that you are human before signing in again.";
+  }
+
+  return errors;
+}
+
+export function getForgotFieldErrors(form: ForgotValidationInput) {
+  const errors = {
+    email: "",
+    newPassword: "",
+    confirmPassword: "",
+  };
+
+  if (form.email.trim() === "") {
+    errors.email = "Email is required.";
+  } else if (!isEmailValid(form.email)) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  const passwordRules = getPasswordRules(form.newPassword);
+  if (form.newPassword === "") {
+    errors.newPassword = "New password is required.";
+  } else if (!passwordRules.every(rule => rule.passed)) {
+    errors.newPassword = "Password must satisfy all listed security rules.";
+  }
+
+  if (form.confirmPassword === "") {
+    errors.confirmPassword = "Please confirm the new password.";
+  } else if (form.newPassword !== form.confirmPassword) {
+    errors.confirmPassword = "Passwords do not match.";
+  }
+
+  return errors;
+}

@@ -86,6 +86,52 @@ describe("auth credential routes", () => {
     });
   });
 
+  it("rejects registration when the full name contains unsupported characters", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.register({
+        fullName: "12",
+        email: "sara.test@example.com",
+        phone: "+966551112233",
+        password: "Bloom@2028",
+      })
+    ).rejects.toThrow();
+
+    expect(dbMocks.registerCustomerAccount).not.toHaveBeenCalled();
+  });
+
+  it("rejects registration when the phone number format is invalid", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.register({
+        fullName: "Sara Test",
+        email: "sara.test@example.com",
+        phone: "abc123",
+        password: "Bloom@2028",
+      })
+    ).rejects.toThrow();
+
+    expect(dbMocks.registerCustomerAccount).not.toHaveBeenCalled();
+  });
+
+  it("rejects registration when the email exceeds the maximum length", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+    const email = `${"a".repeat(321)}@example.com`;
+
+    await expect(
+      caller.auth.register({
+        fullName: "Sara Test",
+        email,
+        phone: "+966551112233",
+        password: "Bloom@2028",
+      })
+    ).rejects.toThrow();
+
+    expect(dbMocks.registerCustomerAccount).not.toHaveBeenCalled();
+  });
+
   it("authenticates a valid account through the database layer", async () => {
     dbMocks.authenticateCustomerAccount.mockResolvedValue({
       success: true,
@@ -130,6 +176,32 @@ describe("auth credential routes", () => {
     });
   });
 
+  it("rejects login when the email format is invalid", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.login({
+        email: "not-an-email",
+        password: "Bloom@2028",
+      })
+    ).rejects.toThrow();
+
+    expect(dbMocks.authenticateCustomerAccount).not.toHaveBeenCalled();
+  });
+
+  it("rejects login when the password exceeds the maximum length", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.login({
+        email: "sara.test@example.com",
+        password: `A${"b".repeat(127)}1!`,
+      })
+    ).rejects.toThrow();
+
+    expect(dbMocks.authenticateCustomerAccount).not.toHaveBeenCalled();
+  });
+
   it("updates the password through the database layer", async () => {
     dbMocks.resetCustomerAccountPassword.mockResolvedValue({
       success: true,
@@ -172,5 +244,31 @@ describe("auth credential routes", () => {
       success: false,
       reason: "missing",
     });
+  });
+
+  it("rejects password reset when the replacement password is weak", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.resetPassword({
+        email: "sara.test@example.com",
+        newPassword: "weakpass",
+      })
+    ).rejects.toThrow();
+
+    expect(dbMocks.resetCustomerAccountPassword).not.toHaveBeenCalled();
+  });
+
+  it("rejects password reset when the replacement password exceeds the maximum length", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(
+      caller.auth.resetPassword({
+        email: "sara.test@example.com",
+        newPassword: `A${"b".repeat(127)}1!`,
+      })
+    ).rejects.toThrow();
+
+    expect(dbMocks.resetCustomerAccountPassword).not.toHaveBeenCalled();
   });
 });

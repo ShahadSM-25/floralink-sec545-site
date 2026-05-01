@@ -9,9 +9,26 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 
-const emailSchema = z.string().trim().email();
+const emailSchema = z.string().trim().max(320).email();
+const fullNameSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(160)
+  .regex(/^[\p{L}][\p{L}\s'.-]*$/u, "Full name contains unsupported characters");
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(7)
+  .max(32)
+  .regex(/^\+?[0-9()\-\s]+$/, "Phone number contains unsupported characters")
+  .refine(value => {
+    const digits = value.replace(/\D/g, "").length;
+    return digits >= 7 && digits <= 15;
+  }, "Phone number must contain between 7 and 15 digits");
 const passwordSchema = z
   .string()
+  .max(128)
   .min(8)
   .regex(/[A-Z]/, "Password must contain an uppercase letter")
   .regex(/\d/, "Password must contain a number")
@@ -34,9 +51,9 @@ export const appRouter = router({
     register: publicProcedure
       .input(
         z.object({
-          fullName: z.string().trim().min(2).max(160),
+          fullName: fullNameSchema,
           email: emailSchema,
-          phone: z.string().trim().min(7).max(32),
+          phone: phoneSchema,
           password: passwordSchema,
         }),
       )
@@ -55,7 +72,7 @@ export const appRouter = router({
       .input(
         z.object({
           email: emailSchema,
-          password: z.string().min(1),
+          password: z.string().max(128).min(1),
         }),
       )
       .mutation(async ({ input }) => {

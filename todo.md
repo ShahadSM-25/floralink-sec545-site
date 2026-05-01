@@ -22,3 +22,20 @@
 - [x] Sync the final FloraLink project state to the separate GitHub repository.
 - [x] Investigate the remaining TypeScript/LSP diagnostic shown in project health checks after the template upgrade and collect definitive evidence that explicit TypeScript project runs now pass and the stale error text only appears in historical managed logs.
 - [x] Re-run project health checks and confirm the panel still shows the same historical diagnostic even though `tsc -p tsconfig.json`, `tsc -p tsconfig.node.json`, `pnpm check`, `pnpm test`, and `pnpm build` all pass on the current source state.
+- [ ] Review the attached FloraLink final report and identify inaccurate statements about the implementation.
+- [ ] Correct inaccurate statements about the tools, technologies, and database used in the project.
+- [ ] Update the attached report file with the corrected implementation and tools details.
+- [ ] Prepare an Arabic speaker note for explaining the FloraLink implementation and live demo to the instructor.
+- [ ] Investigate why registration and other auth actions now fail with generic 'Unable ... right now' messages.
+- [ ] Identify the backend or database error causing the runtime auth failure.
+- [ ] Fix the failing registration and related authentication flows.
+- [ ] Verify registration, login, and forgot-password again after the fix.
+- [ ] Help the user open or publish the latest working FloraLink version instead of an outdated link.
+- [x] Push the latest confirmed FloraLink project changes to the GitHub repository on main.
+- [x] Remove temporary diagnostic and helper files from the GitHub repository and push a clean follow-up commit.
+- [x] Verify whether the current Manus project state exactly matches the cleaned GitHub repository state.
+- [x] Push all remaining Manus-local changes back to GitHub so both states match again.
+- [ ] Diagnose the local Ubuntu runtime error that still shows 'Unable to create the account right now.' after cloning from GitHub.
+- [ ] Explain that the local Ubuntu run is failing because `.env` is missing and `DATABASE_URL` is not configured.
+- [ ] Recover the exact Manus-side environment expectations and explain how to recreate the database setup locally on Ubuntu step by step.
+- [x] Add comprehensive input validation for all registration, login, and password-reset input fields across frontend and backend.
