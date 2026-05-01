@@ -45,3 +45,4 @@
 - [x] Configure the required CAPTCHA secrets and test the integration end to end.
 - [x] Push all newly completed FloraLink project changes to GitHub.
 - [x] Update Google reCAPTCHA site key and secret key through managed project secrets and verify the new configuration.
+- [x] Remove the 'Not common' password verification hint from the FloraLink authentication UI.

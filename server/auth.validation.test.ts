@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getForgotFieldErrors,
   getLoginFieldErrors,
+  getPasswordRules,
   getRegisterFieldErrors,
   isFullNameValid,
   isPhoneValid,
@@ -25,6 +26,15 @@ describe("shared auth validation helpers", () => {
     expect(isPhoneValid("abc123")).toBe(false);
   });
 
+  it("shows only the visible password rules while still hiding the common-password hint", () => {
+    expect(getPasswordRules("Password@1").map(rule => rule.label)).toEqual([
+      "8+ characters",
+      "Uppercase letter",
+      "Number",
+      "Special character",
+    ]);
+  });
+
   it("returns field-level registration errors for invalid input", () => {
     expect(
       getRegisterFieldErrors({
@@ -43,6 +53,19 @@ describe("shared auth validation helpers", () => {
       confirmPassword: "Passwords do not match.",
       captcha: "Please complete the reCAPTCHA verification.",
     });
+  });
+
+  it("still rejects common passwords in registration even without showing that hint", () => {
+    expect(
+      getRegisterFieldErrors({
+        fullName: "Reem Alshareef",
+        email: "reem@example.com",
+        phone: "+966 50 123 4567",
+        password: "Password@1",
+        confirmPassword: "Password@1",
+        captchaToken: "captcha-token",
+      }).password
+    ).toBe("Password must satisfy all listed security rules.");
   });
 
   it("returns login validation errors for empty password and missing reCAPTCHA token", () => {

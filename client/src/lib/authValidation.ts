@@ -23,6 +23,7 @@ export type ForgotValidationInput = {
 const fullNamePattern = /^[\p{L}][\p{L}\s'.-]*$/u;
 const phonePattern = /^\+?[0-9()\-\s]+$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const commonPasswordPattern = /(password|123456|qwerty|welcome)/i;
 
 export function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
@@ -61,11 +62,17 @@ export function getPasswordRules(password: string) {
     { label: "Uppercase letter", passed: /[A-Z]/.test(password) },
     { label: "Number", passed: /\d/.test(password) },
     { label: "Special character", passed: /[^A-Za-z0-9]/.test(password) },
-    {
-      label: "Not common",
-      passed: password.length >= 8 && !/(password|123456|qwerty|welcome)/i.test(password),
-    },
   ];
+}
+
+export function isPasswordStrong(password: string) {
+  return (
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password) &&
+    !commonPasswordPattern.test(password)
+  );
 }
 
 export function getRegisterFieldErrors(form: RegisterValidationInput) {
@@ -96,10 +103,9 @@ export function getRegisterFieldErrors(form: RegisterValidationInput) {
     errors.phone = "Enter 7 to 15 digits using numbers, spaces, parentheses, hyphens, and an optional leading +.";
   }
 
-  const passwordRules = getPasswordRules(form.password);
   if (form.password === "") {
     errors.password = "Password is required.";
-  } else if (!passwordRules.every(rule => rule.passed)) {
+  } else if (!isPasswordStrong(form.password)) {
     errors.password = "Password must satisfy all listed security rules.";
   }
 
@@ -154,10 +160,9 @@ export function getForgotFieldErrors(form: ForgotValidationInput) {
     errors.email = "Enter a valid email address.";
   }
 
-  const passwordRules = getPasswordRules(form.newPassword);
   if (form.newPassword === "") {
     errors.newPassword = "New password is required.";
-  } else if (!passwordRules.every(rule => rule.passed)) {
+  } else if (!isPasswordStrong(form.newPassword)) {
     errors.newPassword = "Password must satisfy all listed security rules.";
   }
 
