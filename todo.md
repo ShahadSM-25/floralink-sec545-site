@@ -39,4 +39,4 @@
 - [ ] Explain that the local Ubuntu run is failing because `.env` is missing and `DATABASE_URL` is not configured.
 - [ ] Recover the exact Manus-side environment expectations and explain how to recreate the database setup locally on Ubuntu step by step.
 - [x] Add comprehensive input validation for all registration, login, and password-reset input fields across frontend and backend.
-- [ ] Push the latest current FloraLink project state, including the new input-validation changes, to GitHub.
+- [x] Push the latest current FloraLink project state, including the new input-validation changes, to GitHub.
