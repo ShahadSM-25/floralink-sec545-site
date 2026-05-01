@@ -43,5 +43,5 @@
 - [x] Replace the current simulated human-check flow with a real CAPTCHA service across the authentication forms.
 - [x] Add secure server-side CAPTCHA token verification for authentication requests.
 - [x] Configure the required CAPTCHA secrets and test the integration end to end.
-- [ ] Push all newly completed FloraLink project changes to GitHub.
+- [x] Push all newly completed FloraLink project changes to GitHub.
 - [x] Update Google reCAPTCHA site key and secret key through managed project secrets and verify the new configuration.
