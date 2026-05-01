@@ -1,0 +1,93 @@
+import { z } from "zod";
+import { COOKIE_NAME } from "@shared/const";
+import {
+  authenticateCustomerAccount,
+  registerCustomerAccount,
+  resetCustomerAccountPassword,
+} from "./db";
+import { getSessionCookieOptions } from "./_core/cookies";
+import { systemRouter } from "./_core/systemRouter";
+import { publicProcedure, router } from "./_core/trpc";
+
+const emailSchema = z.string().trim().email();
+const passwordSchema = z
+  .string()
+  .min(8)
+  .regex(/[A-Z]/, "Password must contain an uppercase letter")
+  .regex(/\d/, "Password must contain a number")
+  .regex(/[^A-Za-z0-9]/, "Password must contain a special character")
+  .refine(value => !/(password|123456|qwerty|welcome)/i.test(value), {
+    message: "Password is too common",
+  });
+
+export const appRouter = router({
+  system: systemRouter,
+  auth: router({
+    me: publicProcedure.query(opts => opts.ctx.user),
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return {
+        success: true,
+      } as const;
+    }),
+    register: publicProcedure
+      .input(
+        z.object({
+          fullName: z.string().trim().min(2).max(160),
+          email: emailSchema,
+          phone: z.string().trim().min(7).max(32),
+          password: passwordSchema,
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const result = await registerCustomerAccount(input);
+        if (!result.success) {
+          return result;
+        }
+
+        return {
+          success: true as const,
+          account: result.account,
+        };
+      }),
+    login: publicProcedure
+      .input(
+        z.object({
+          email: emailSchema,
+          password: z.string().min(1),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const result = await authenticateCustomerAccount(input);
+        if (!result.success) {
+          return result;
+        }
+
+        return {
+          success: true as const,
+          account: result.account,
+        };
+      }),
+    resetPassword: publicProcedure
+      .input(
+        z.object({
+          email: emailSchema,
+          newPassword: passwordSchema,
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const result = await resetCustomerAccountPassword(input);
+        if (!result.success) {
+          return result;
+        }
+
+        return {
+          success: true as const,
+          account: result.account,
+        };
+      }),
+  }),
+});
+
+export type AppRouter = typeof appRouter;

@@ -66,6 +66,7 @@ export default defineConfig({
   },
   envDir: path.resolve(import.meta.dirname),
   root: path.resolve(import.meta.dirname, "client"),
+  publicDir: path.resolve(import.meta.dirname, "client", "public"),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
@@ -74,5 +75,6 @@ export default defineConfig({
     port: 3000,
     host: true,
     strictPort: false,
+    allowedHosts: ["3000-imoqes6aejhdoejsf52re-c18e3a29.sg1.manus.computer"],
   },
 });

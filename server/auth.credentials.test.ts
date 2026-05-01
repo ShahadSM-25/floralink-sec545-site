@@ -1,0 +1,176 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { TrpcContext } from "./_core/context";
+
+const dbMocks = vi.hoisted(() => ({
+  registerCustomerAccount: vi.fn(),
+  authenticateCustomerAccount: vi.fn(),
+  resetCustomerAccountPassword: vi.fn(),
+}));
+
+vi.mock("./db", () => ({
+  registerCustomerAccount: dbMocks.registerCustomerAccount,
+  authenticateCustomerAccount: dbMocks.authenticateCustomerAccount,
+  resetCustomerAccountPassword: dbMocks.resetCustomerAccountPassword,
+}));
+
+import { appRouter } from "./routers";
+
+function createPublicContext(): TrpcContext {
+  return {
+    user: null,
+    req: {
+      protocol: "https",
+      headers: {},
+    } as TrpcContext["req"],
+    res: {
+      clearCookie: vi.fn(),
+    } as unknown as TrpcContext["res"],
+  };
+}
+
+describe("auth credential routes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("registers a new account through the database layer", async () => {
+    dbMocks.registerCustomerAccount.mockResolvedValue({
+      success: true,
+      account: {
+        id: 7,
+        fullName: "Sara Test",
+        email: "sara.test@example.com",
+        phone: "+966551112233",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    const caller = appRouter.createCaller(createPublicContext());
+    const result = await caller.auth.register({
+      fullName: "Sara Test",
+      email: "sara.test@example.com",
+      phone: "+966551112233",
+      password: "Bloom@2028",
+    });
+
+    expect(dbMocks.registerCustomerAccount).toHaveBeenCalledWith({
+      fullName: "Sara Test",
+      email: "sara.test@example.com",
+      phone: "+966551112233",
+      password: "Bloom@2028",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.account.email).toBe("sara.test@example.com");
+    }
+  });
+
+  it("returns exists when the email has already been registered", async () => {
+    dbMocks.registerCustomerAccount.mockResolvedValue({
+      success: false,
+      reason: "exists",
+    });
+
+    const caller = appRouter.createCaller(createPublicContext());
+    const result = await caller.auth.register({
+      fullName: "Sara Test",
+      email: "sara.test@example.com",
+      phone: "+966551112233",
+      password: "Bloom@2028",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      reason: "exists",
+    });
+  });
+
+  it("authenticates a valid account through the database layer", async () => {
+    dbMocks.authenticateCustomerAccount.mockResolvedValue({
+      success: true,
+      account: {
+        id: 7,
+        fullName: "Sara Test",
+        email: "sara.test@example.com",
+        phone: "+966551112233",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    const caller = appRouter.createCaller(createPublicContext());
+    const result = await caller.auth.login({
+      email: "sara.test@example.com",
+      password: "Bloom@2028",
+    });
+
+    expect(dbMocks.authenticateCustomerAccount).toHaveBeenCalledWith({
+      email: "sara.test@example.com",
+      password: "Bloom@2028",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("returns invalid when login credentials do not match", async () => {
+    dbMocks.authenticateCustomerAccount.mockResolvedValue({
+      success: false,
+      reason: "invalid",
+    });
+
+    const caller = appRouter.createCaller(createPublicContext());
+    const result = await caller.auth.login({
+      email: "sara.test@example.com",
+      password: "Wrong@2028",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      reason: "invalid",
+    });
+  });
+
+  it("updates the password through the database layer", async () => {
+    dbMocks.resetCustomerAccountPassword.mockResolvedValue({
+      success: true,
+      account: {
+        id: 7,
+        fullName: "Sara Test",
+        email: "sara.test@example.com",
+        phone: "+966551112233",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    const caller = appRouter.createCaller(createPublicContext());
+    const result = await caller.auth.resetPassword({
+      email: "sara.test@example.com",
+      newPassword: "Bloom@2029",
+    });
+
+    expect(dbMocks.resetCustomerAccountPassword).toHaveBeenCalledWith({
+      email: "sara.test@example.com",
+      newPassword: "Bloom@2029",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("returns missing when a password reset email is not found", async () => {
+    dbMocks.resetCustomerAccountPassword.mockResolvedValue({
+      success: false,
+      reason: "missing",
+    });
+
+    const caller = appRouter.createCaller(createPublicContext());
+    const result = await caller.auth.resetPassword({
+      email: "missing@example.com",
+      newPassword: "Bloom@2029",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      reason: "missing",
+    });
+  });
+});

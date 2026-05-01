@@ -1,4 +1,24 @@
-- [ ] تجهيز شعار FloraLink المرفق بصيغة مناسبة للاستخدام داخل المشروع.
-- [ ] استبدال الشعار الحالي في الهيدر بالشعار الجديد المرفق.
-- [ ] تعديل حجم وتموضع الشعار إذا لزم حتى يظهر بشكل نظيف ومتوازن.
-- [ ] التحقق من البناء بعد التعديل.
+- [x] تجهيز شعار FloraLink المرفق بصيغة مناسبة للاستخدام داخل المشروع.
+- [x] استبدال الشعار الحالي في الهيدر بالشعار الجديد المرفق.
+- [x] تعديل حجم وتموضع الشعار إذا لزم حتى يظهر بشكل نظيف ومتوازن.
+- [x] التحقق من البناء بعد التعديل.
+- [x] Review implemented Phase 3 modules for UC-01, UC-02, MIT-01, and MIT-02.
+- [x] Extract accurate behavior for black-box testing scenarios and expected results.
+- [x] Draft the full Arabic Deliverable #4 Phase 3 section, including implementation, testing, technologies, and database choice.
+- [x] Translate the completed Phase 3 implementation and testing section into English.
+- [x] Preserve the same structure, technical details, and testing coverage in the English version.
+- [x] Rewrite the tools and technologies section in Arabic with a natural academic tone suitable for direct submission.
+- [x] Investigate why newly registered accounts cannot log in with the entered password.
+- [x] Implement proper account persistence for registration and login in the current standalone frontend.
+- [x] Add a forgot-password option and recovery flow in the authentication interface.
+- [x] Verify the updated registration, login, and recovery flows.
+- [x] Upgrade the FloraLink project to support backend routes, database storage, and user management.
+- [x] Replace browser-only account storage with database-backed registration and sign-in.
+- [x] Connect forgot-password flow to update stored credentials in the database.
+- [x] Verify registration, login, and password reset end to end after the database integration.
+- [x] Fix the remaining TypeScript and template upgrade issues after the database-backed authentication work.
+- [x] Re-run project verification after the TypeScript cleanup.
+- [ ] Save a fresh checkpoint for the database-backed authentication update.
+- [ ] Sync the final FloraLink project state to the separate GitHub repository.
+- [ ] Resolve the remaining TypeScript/LSP diagnostic shown in project health checks after the template upgrade.
+- [ ] Re-run project health checks and confirm no TypeScript/template diagnostics remain.

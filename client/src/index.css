@@ -535,6 +535,25 @@
     color: #b95c78;
   }
 
+  .inline-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin: -0.1rem 0 0.85rem;
+  }
+
+  .inline-link {
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: #7f5d98;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .inline-link:hover {
+    color: #684a7f;
+  }
+
   .success-circle,
   .lock-icon {
     width: 3.5rem;

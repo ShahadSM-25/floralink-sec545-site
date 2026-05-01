@@ -1,0 +1,19 @@
+Preview verification notes:
+- The site now opens correctly in the browser after adding the preview host to Vite allowedHosts.
+- The authentication panel loads with Create account and Sign in tabs visible.
+- The registration form fields are visible and interactive in the current viewport.
+- Next verification step: create a new account, confirm sign-in works with the same credentials, and test the forgot-password flow.
+- Registration test passed for sara.test@example.com. The success screen appeared and showed the newly entered account details, which indicates that the account is now being stored in the frontend state and local storage.
+- After registration, the interface moved correctly to the sign-in form with the newly created email prefilled.
+- The Forgot password? option is now visible in the sign-in form.
+- Next verification step: submit the valid new password and then test resetting the password through the recovery flow.
+- Login test passed for the newly registered account sara.test@example.com using Bloom@2027. The interface showed the Welcome back screen with Active status.
+- The sign-in form can be reopened after success, and the Forgot password? action remains available for recovery testing.
+- The forgot-password flow opened correctly from the sign-in form.
+- The recovery form accepted the newly created account email sara.test@example.com and a replacement password that satisfied the strength rules.
+- Next verification step: save the new password and confirm sign-in works with the updated password.
+- The password reset flow completed successfully and showed the Password updated confirmation screen.
+- Returning from the reset confirmation reopened the sign-in form with sara.test@example.com prefilled.
+- Final verification step: sign in using the updated password Bloom@2028.
+- Final verification passed: the updated password Bloom@2028 successfully signed in for sara.test@example.com, and the Welcome back screen appeared again.
+- The original bug was confirmed fixed because a newly registered account can now authenticate, and the forgot-password recovery path updates the stored password correctly.
