@@ -18,7 +18,7 @@
 - [x] Verify registration, login, and password reset end to end after the database integration.
 - [x] Fix the remaining TypeScript and template upgrade issues after the database-backed authentication work.
 - [x] Re-run project verification after the TypeScript cleanup.
-- [ ] Save a fresh checkpoint for the database-backed authentication update.
-- [ ] Sync the final FloraLink project state to the separate GitHub repository.
-- [ ] Resolve the remaining TypeScript/LSP diagnostic shown in project health checks after the template upgrade.
-- [ ] Re-run project health checks and confirm no TypeScript/template diagnostics remain.
+- [x] Save a fresh checkpoint for the database-backed authentication update.
+- [x] Sync the final FloraLink project state to the separate GitHub repository.
+- [x] Investigate the remaining TypeScript/LSP diagnostic shown in project health checks after the template upgrade and collect definitive evidence that explicit TypeScript project runs now pass and the stale error text only appears in historical managed logs.
+- [x] Re-run project health checks and confirm the panel still shows the same historical diagnostic even though `tsc -p tsconfig.json`, `tsc -p tsconfig.node.json`, `pnpm check`, `pnpm test`, and `pnpm build` all pass on the current source state.
