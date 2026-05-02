@@ -46,3 +46,10 @@
 - [x] Push all newly completed FloraLink project changes to GitHub.
 - [x] Update Google reCAPTCHA site key and secret key through managed project secrets and verify the new configuration.
 - [x] Remove the 'Not common' password verification hint from the FloraLink authentication UI.
+- [ ] Diagnose the reCAPTCHA 'Invalid domain for site key' error shown in the authentication form and explain the fix.
+- [ ] Diagnose why reCAPTCHA shows 'site key is not configured' on localhost and explain the required local environment fix.
+- [x] Review the Secure Software Testing lecture against the FloraLink report, verify all technical/testing claims, and assess whether the submission is academically ready for the professor.
+- [ ] Explain what the current Vitest tests in FloraLink actually verify, and whether they count as SQL injection testing or penetration testing.
+- [x] Revise the final FloraLink report to align the testing section with the lecture review, add complete test case fields, verify the two use cases include the implemented mitigations, and produce a submission-ready corrected version.
+- [x] Perform SQL injection testing, fuzz testing, and non-destructive penetration-oriented security testing against the Manus version of FloraLink, then document the findings accurately.
+- [x] Integrate the new security testing content directly into Section 11 of the existing FloraLink report and produce an updated submission-ready document.
