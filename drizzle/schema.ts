@@ -1,7 +1,7 @@
 import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
- * Core user table backing Manus OAuth.
+ * Core user table backing the OAuth-based sign-in flow.
  */
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),

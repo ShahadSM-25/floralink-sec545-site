@@ -13,7 +13,7 @@ describe("reCAPTCHA secret configuration", () => {
       },
       body: new URLSearchParams({
         secret: secret ?? "",
-        response: "manus-secret-validation-probe",
+        response: "floralink-secret-validation-probe",
       }),
     });
 

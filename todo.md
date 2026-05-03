@@ -1,55 +1,6 @@
-- [x] تجهيز شعار FloraLink المرفق بصيغة مناسبة للاستخدام داخل المشروع.
-- [x] استبدال الشعار الحالي في الهيدر بالشعار الجديد المرفق.
-- [x] تعديل حجم وتموضع الشعار إذا لزم حتى يظهر بشكل نظيف ومتوازن.
-- [x] التحقق من البناء بعد التعديل.
-- [x] Review implemented Phase 3 modules for UC-01, UC-02, MIT-01, and MIT-02.
-- [x] Extract accurate behavior for black-box testing scenarios and expected results.
-- [x] Draft the full Arabic Deliverable #4 Phase 3 section, including implementation, testing, technologies, and database choice.
-- [x] Translate the completed Phase 3 implementation and testing section into English.
-- [x] Preserve the same structure, technical details, and testing coverage in the English version.
-- [x] Rewrite the tools and technologies section in Arabic with a natural academic tone suitable for direct submission.
-- [x] Investigate why newly registered accounts cannot log in with the entered password.
-- [x] Implement proper account persistence for registration and login in the current standalone frontend.
-- [x] Add a forgot-password option and recovery flow in the authentication interface.
-- [x] Verify the updated registration, login, and recovery flows.
-- [x] Upgrade the FloraLink project to support backend routes, database storage, and user management.
-- [x] Replace browser-only account storage with database-backed registration and sign-in.
-- [x] Connect forgot-password flow to update stored credentials in the database.
-- [x] Verify registration, login, and password reset end to end after the database integration.
-- [x] Fix the remaining TypeScript and template upgrade issues after the database-backed authentication work.
-- [x] Re-run project verification after the TypeScript cleanup.
-- [x] Save a fresh checkpoint for the database-backed authentication update.
-- [x] Sync the final FloraLink project state to the separate GitHub repository.
-- [x] Investigate the remaining TypeScript/LSP diagnostic shown in project health checks after the template upgrade and collect definitive evidence that explicit TypeScript project runs now pass and the stale error text only appears in historical managed logs.
-- [x] Re-run project health checks and confirm the panel still shows the same historical diagnostic even though `tsc -p tsconfig.json`, `tsc -p tsconfig.node.json`, `pnpm check`, `pnpm test`, and `pnpm build` all pass on the current source state.
-- [ ] Review the attached FloraLink final report and identify inaccurate statements about the implementation.
-- [ ] Correct inaccurate statements about the tools, technologies, and database used in the project.
-- [ ] Update the attached report file with the corrected implementation and tools details.
-- [ ] Prepare an Arabic speaker note for explaining the FloraLink implementation and live demo to the instructor.
-- [ ] Investigate why registration and other auth actions now fail with generic 'Unable ... right now' messages.
-- [ ] Identify the backend or database error causing the runtime auth failure.
-- [ ] Fix the failing registration and related authentication flows.
-- [ ] Verify registration, login, and forgot-password again after the fix.
-- [ ] Help the user open or publish the latest working FloraLink version instead of an outdated link.
-- [x] Push the latest confirmed FloraLink project changes to the GitHub repository on main.
-- [x] Remove temporary diagnostic and helper files from the GitHub repository and push a clean follow-up commit.
-- [x] Verify whether the current Manus project state exactly matches the cleaned GitHub repository state.
-- [x] Push all remaining Manus-local changes back to GitHub so both states match again.
-- [ ] Diagnose the local Ubuntu runtime error that still shows 'Unable to create the account right now.' after cloning from GitHub.
-- [ ] Explain that the local Ubuntu run is failing because `.env` is missing and `DATABASE_URL` is not configured.
-- [ ] Recover the exact Manus-side environment expectations and explain how to recreate the database setup locally on Ubuntu step by step.
-- [x] Add comprehensive input validation for all registration, login, and password-reset input fields across frontend and backend.
-- [x] Push the latest current FloraLink project state, including the new input-validation changes, to GitHub.
-- [x] Replace the current simulated human-check flow with a real CAPTCHA service across the authentication forms.
-- [x] Add secure server-side CAPTCHA token verification for authentication requests.
-- [x] Configure the required CAPTCHA secrets and test the integration end to end.
-- [x] Push all newly completed FloraLink project changes to GitHub.
-- [x] Update Google reCAPTCHA site key and secret key through managed project secrets and verify the new configuration.
-- [x] Remove the 'Not common' password verification hint from the FloraLink authentication UI.
-- [ ] Diagnose the reCAPTCHA 'Invalid domain for site key' error shown in the authentication form and explain the fix.
-- [ ] Diagnose why reCAPTCHA shows 'site key is not configured' on localhost and explain the required local environment fix.
-- [x] Review the Secure Software Testing lecture against the FloraLink report, verify all technical/testing claims, and assess whether the submission is academically ready for the professor.
-- [ ] Explain what the current Vitest tests in FloraLink actually verify, and whether they count as SQL injection testing or penetration testing.
-- [x] Revise the final FloraLink report to align the testing section with the lecture review, add complete test case fields, verify the two use cases include the implemented mitigations, and produce a submission-ready corrected version.
-- [x] Perform SQL injection testing, fuzz testing, and non-destructive penetration-oriented security testing against the Manus version of FloraLink, then document the findings accurately.
-- [x] Integrate the new security testing content directly into Section 11 of the existing FloraLink report and produce an updated submission-ready document.
+# Project TODO
+
+- [x] Audit the repository for platform-specific branding and non-essential delivery files
+- [x] Remove report, Word, and other non-source artifacts that are not needed for code submission
+- [x] Remove or rewrite in-project references to platform-specific wording where safe
+- [x] Verify the repository still builds cleanly after the submission cleanup
