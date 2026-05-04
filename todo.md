@@ -15,4 +15,5 @@
 - [x] Check the report for contradiction between design and implementation regarding database persistence and password hashing terminology
 - [x] Draft a copy-paste-ready Appendix A: Detailed Test Logs section for the final report
 - [x] Perform a final repository scan for any remaining platform-specific wording before delivery
-- [ ] Remove non-essential submission artifacts and package the cleaned project as a ZIP file
+- [x] Remove non-essential submission artifacts and package the cleaned project as a ZIP file
+- [x] Prepare an English live demo presentation script with screen actions and anticipated Q&A for the FloraLink SEC545 presentation
