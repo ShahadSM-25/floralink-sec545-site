@@ -4,3 +4,10 @@
 - [x] Remove report, Word, and other non-source artifacts that are not needed for code submission
 - [x] Remove or rewrite in-project references to platform-specific wording where safe
 - [x] Verify the repository still builds cleanly after the submission cleanup
+- [ ] Diagnose reCAPTCHA test failure caused by fetch timeout to Google's verification endpoint
+- [ ] Decide whether the reCAPTCHA secret test should handle offline/network-restricted environments more gracefully
+- [x] Review the report Testing Strategy section against the lecture slide template and example
+- [x] Draft a final copy-paste-ready Testing Strategy and Test Plan section that matches the lecture slides structure
+- [x] Draft an improved Results, Analysis, Challenges, and Lessons Learned section based on the actual implementation issues and resolutions
+- [x] Add a fourth mitigation use case for input validation in a copy-paste-ready academic style
+- [x] Review the final report document and provide structured academic, language, and formatting feedback before submission
